@@ -1,7 +1,10 @@
 package tui
 
 import (
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/ksupera/prcheck/internal/github"
+	"github.com/ksupera/prcheck/internal/pipeline"
 )
 
 // Messages flow from goroutines into the Bubble Tea Update function.
@@ -48,4 +51,10 @@ func (t Tab) Label() string {
 		return "Mentioned"
 	}
 	return "?"
+}
+
+// ProgressFromEvent constructs the public progress message used by
+// the main package to stream live pipeline events.
+func ProgressFromEvent(e pipeline.Event) tea.Msg {
+	return progressMsg{step: e.Step, note: e.Note, err: e.Err}
 }
