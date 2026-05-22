@@ -81,7 +81,7 @@ func SearchPRs(ctx context.Context, q Query) ([]PR, error) {
 	out, err := runGH(ctx,
 		"search", "prs",
 		q.gqString(),
-		"--json", "number,title,url,author,headRefName,baseRefName,updatedAt",
+		"--json", "number,title,url,author,updatedAt",
 		"--limit", "50",
 	)
 	if err != nil {
