@@ -16,16 +16,19 @@ const (
 	QueryMentioned
 )
 
-func (q Query) gqString() string {
+// searchFlags returns the gh-search-prs flag args for this query.
+// Positional query strings ("is:open is:pr author:@me") don't work
+// reliably across gh versions; flag form is the supported path.
+func (q Query) searchFlags() []string {
 	switch q {
 	case QueryAuthored:
-		return "is:open is:pr author:@me"
+		return []string{"--author=@me", "--state=open"}
 	case QueryReviewRequested:
-		return "is:open is:pr review-requested:@me"
+		return []string{"--review-requested=@me", "--state=open"}
 	case QueryMentioned:
-		return "is:open is:pr mentions:@me"
+		return []string{"--mentions=@me", "--state=open"}
 	}
-	return ""
+	return nil
 }
 
 func (q Query) Label() string {
@@ -78,12 +81,13 @@ func runGH(ctx context.Context, args ...string) ([]byte, error) {
 }
 
 func SearchPRs(ctx context.Context, q Query) ([]PR, error) {
-	out, err := runGH(ctx,
-		"search", "prs",
-		q.gqString(),
+	args := []string{"search", "prs"}
+	args = append(args, q.searchFlags()...)
+	args = append(args,
 		"--json", "number,title,url,author,updatedAt",
 		"--limit", "50",
 	)
+	out, err := runGH(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
