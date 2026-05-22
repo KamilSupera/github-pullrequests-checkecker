@@ -31,12 +31,15 @@ func TestModel_ShowsMineTab(t *testing.T) {
 		d.PR.Author = "kamil"
 		return d, nil
 	}
+	diff := func(ctx context.Context, url string) (string, error) {
+		return "diff --git a/x b/x\n+stub\n", nil
+	}
 	runPipe := func(ctx context.Context, url string, emit func(pipeline.Event)) (int64, error) {
 		return 7, nil
 	}
 	open := func(url string) error { return nil }
 
-	m := NewModel(loader, detail, runPipe, open)
+	m := NewModel(loader, detail, diff, runPipe, open)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
 
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {

@@ -71,8 +71,11 @@ func run() error {
 	detailFn := func(ctx context.Context, url string) (*github.PRDetail, error) {
 		return github.FetchPRDetail(ctx, url)
 	}
+	diffFn := func(ctx context.Context, url string) (string, error) {
+		return github.FetchDiff(ctx, url)
+	}
 
-	model := tui.NewModel(loader, detailFn, runPipe, openInBrowser)
+	model := tui.NewModel(loader, detailFn, diffFn, runPipe, openInBrowser)
 	program = tea.NewProgram(model, tea.WithAltScreen())
 	_, err = program.Run()
 	return err

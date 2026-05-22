@@ -2,9 +2,12 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/ksupera/prcheck/internal/github"
 )
 
 var (
@@ -16,6 +19,7 @@ var (
 	pass        = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
 	fail        = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 	hint        = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+	repoHeader  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("75"))
 )
 
 func (m Model) View() string {
@@ -23,7 +27,11 @@ func (m Model) View() string {
 	left := m.renderList()
 	right := m.renderRight()
 	body := lipgloss.JoinHorizontal(lipgloss.Top, border.Render(left), border.Render(right))
-	footer := hint.Render("j/k move  Tab switch  Enter review  o open  r refresh  q quit")
+	footerText := "j/k move  Tab switch  Enter review  d diff  o open  r refresh  q quit"
+	if m.viewingDiff {
+		footerText = "j/k scroll  pgup/pgdn page  d/Esc back  q quit"
+	}
+	footer := hint.Render(footerText)
 	return strings.Join([]string{header, body, footer}, "\n")
 }
 
@@ -51,18 +59,62 @@ func (m Model) renderList() string {
 	if len(prs) == 0 {
 		return dim.Render("(no PRs)")
 	}
+
+	groups := groupByRepo(prs)
 	var lines []string
-	for i, pr := range prs {
-		prefix := "  "
-		if i == m.cursor {
-			prefix = "► "
+	idx := 0 // running index into `prs`, matches m.cursor semantics
+	for _, g := range groups {
+		lines = append(lines, repoHeader.Render(g.name))
+		for _, pr := range g.prs {
+			prefix := "  "
+			if idx == m.cursor {
+				prefix = "► "
+			}
+			lines = append(lines, fmt.Sprintf("%s#%d %s", prefix, pr.Number, truncate(pr.Title, 50)))
+			idx++
 		}
-		lines = append(lines, fmt.Sprintf("%s#%d %s", prefix, pr.Number, truncate(pr.Title, 50)))
 	}
 	return strings.Join(lines, "\n")
 }
 
+type repoGroup struct {
+	name string
+	prs  []github.PR
+}
+
+// groupByRepo returns prs grouped by Repo, preserving the input order
+// of PRs within each group. Group order is the order in which each
+// repo first appeared in the slice — which, since prs is sorted by
+// UpdatedAt desc, places the recently-updated repo first.
+func groupByRepo(prs []github.PR) []repoGroup {
+	idx := map[string]int{}
+	var groups []repoGroup
+	for _, pr := range prs {
+		key := pr.Repo
+		if key == "" {
+			key = "(unknown)"
+		}
+		if i, ok := idx[key]; ok {
+			groups[i].prs = append(groups[i].prs, pr)
+			continue
+		}
+		idx[key] = len(groups)
+		groups = append(groups, repoGroup{name: key, prs: []github.PR{pr}})
+	}
+	// Sort PRs within each group by UpdatedAt desc (re-sort because
+	// caller's outer sort already did this — kept here for clarity).
+	for i := range groups {
+		sort.SliceStable(groups[i].prs, func(a, b int) bool {
+			return groups[i].prs[a].UpdatedAt > groups[i].prs[b].UpdatedAt
+		})
+	}
+	return groups
+}
+
 func (m Model) renderRight() string {
+	if m.viewingDiff {
+		return m.diffVP.View()
+	}
 	if m.running {
 		return m.renderProgress()
 	}

@@ -12,8 +12,32 @@ import (
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
+	case tea.WindowSizeMsg:
+		// Right pane is ~ half the width; subtract some chrome.
+		w := msg.Width/2 - 4
+		if w < 20 {
+			w = 20
+		}
+		h := msg.Height - 6
+		if h < 5 {
+			h = 5
+		}
+		m.diffVP.Width = w
+		m.diffVP.Height = h
+		return m, nil
+
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+
+	case diffLoadedMsg:
+		if msg.err == nil {
+			m.diffs[msg.url] = msg.diff
+			if m.viewingDiff {
+				m.diffVP.SetContent(msg.diff)
+				m.diffVP.GotoTop()
+			}
+		}
+		return m, nil
 
 	case prsLoadedMsg:
 		if msg.err != nil {
@@ -57,7 +81,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	key := msg.String()
+
+	// When viewing a diff, j/k/pgup/pgdn scroll the viewport;
+	// d or esc returns to the detail pane.
+	if m.viewingDiff {
+		switch key {
+		case "d", "esc":
+			m.viewingDiff = false
+			return m, nil
+		case "q", "ctrl+c":
+			m.cancel()
+			return m, tea.Quit
+		}
+		var cmd tea.Cmd
+		m.diffVP, cmd = m.diffVP.Update(msg)
+		return m, cmd
+	}
+
+	switch key {
 
 	case "q", "ctrl+c":
 		if m.running && m.pipeCancel != nil {
@@ -90,6 +132,20 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
+
+	case "d":
+		pr, ok := m.currentPR()
+		if !ok {
+			return m, nil
+		}
+		m.viewingDiff = true
+		if diff, cached := m.diffs[pr.URL]; cached {
+			m.diffVP.SetContent(diff)
+			m.diffVP.GotoTop()
+			return m, nil
+		}
+		m.diffVP.SetContent("loading diff...")
+		return m, m.loadDiff(pr.URL)
 
 	case "tab":
 		m.tab = (m.tab + 1) % 3
@@ -137,6 +193,13 @@ func (m Model) loadDetail(url string) tea.Cmd {
 	return func() tea.Msg {
 		d, err := m.detailFn(m.ctx, url)
 		return prDetailMsg{url: url, detail: d, err: err}
+	}
+}
+
+func (m Model) loadDiff(url string) tea.Cmd {
+	return func() tea.Msg {
+		d, err := m.diffFn(m.ctx, url)
+		return diffLoadedMsg{url: url, diff: d, err: err}
 	}
 }
 

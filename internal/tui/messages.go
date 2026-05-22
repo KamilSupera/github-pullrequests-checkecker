@@ -33,6 +33,12 @@ type reviewDoneMsg struct {
 	err      error
 }
 
+type diffLoadedMsg struct {
+	url  string
+	diff string
+	err  error
+}
+
 type Tab int
 
 const (

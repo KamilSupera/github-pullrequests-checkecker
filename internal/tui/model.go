@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/ksupera/prcheck/internal/github"
@@ -12,6 +13,7 @@ import (
 
 type loaderFn func(ctx context.Context, q github.Query) ([]github.PR, error)
 type detailFn func(ctx context.Context, url string) (*github.PRDetail, error)
+type diffFn func(ctx context.Context, url string) (string, error)
 type runPipelineFn func(ctx context.Context, prURL string, emit func(pipeline.Event)) (int64, error)
 type openFn func(url string) error
 
@@ -22,6 +24,7 @@ type Model struct {
 
 	loader   loaderFn
 	detailFn detailFn
+	diffFn   diffFn
 	runPipe  runPipelineFn
 	openURL  openFn
 
@@ -31,16 +34,20 @@ type Model struct {
 	cursor   int
 
 	details map[string]*github.PRDetail
+	diffs   map[string]string
 
 	running    bool
 	steps      []string // history of progress events
 	lastReview *reviewDoneMsg
 
+	viewingDiff bool
+	diffVP      viewport.Model
+
 	spinner spinner.Model
 	err     error
 }
 
-func NewModel(loader loaderFn, df detailFn, rp runPipelineFn, open openFn) Model {
+func NewModel(loader loaderFn, df detailFn, dfn diffFn, rp runPipelineFn, open openFn) Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 
@@ -50,11 +57,14 @@ func NewModel(loader loaderFn, df detailFn, rp runPipelineFn, open openFn) Model
 		cancel:   cancel,
 		loader:   loader,
 		detailFn: df,
+		diffFn:   dfn,
 		runPipe:  rp,
 		openURL:  open,
 		prsByTab: map[Tab][]github.PR{},
 		loadErr:  map[Tab]error{},
 		details:  map[string]*github.PRDetail{},
+		diffs:    map[string]string{},
+		diffVP:   viewport.New(80, 20),
 		spinner:  sp,
 	}
 }
