@@ -1,0 +1,13 @@
+{
+  "number": 1234,
+  "title": "Add caching layer",
+  "url": "https://github.com/org/repo/pull/1234",
+  "body": "Implements ABC-123. Adds a TTL-based cache.",
+  "headRefName": "feat/cache",
+  "baseRefName": "develop",
+  "author": {"login": "kamil"},
+  "statusCheckRollup": [
+    {"name": "build", "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "test", "status": "COMPLETED", "conclusion": "FAILURE"}
+  ]
+}

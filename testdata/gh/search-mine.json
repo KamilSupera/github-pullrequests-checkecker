@@ -1,0 +1,20 @@
+[
+  {
+    "number": 1234,
+    "title": "Add caching layer",
+    "url": "https://github.com/org/repo/pull/1234",
+    "author": {"login": "kamil"},
+    "headRefName": "feat/cache",
+    "baseRefName": "develop",
+    "updatedAt": "2026-05-22T10:00:00Z"
+  },
+  {
+    "number": 1235,
+    "title": "Fix auth race",
+    "url": "https://github.com/org/repo/pull/1235",
+    "author": {"login": "kamil"},
+    "headRefName": "fix/auth",
+    "baseRefName": "develop",
+    "updatedAt": "2026-05-21T12:00:00Z"
+  }
+]
