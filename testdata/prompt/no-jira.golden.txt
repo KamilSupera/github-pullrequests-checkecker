@@ -1,0 +1,26 @@
+Use skill caveman:caveman-review.
+
+PR: Refactor
+Branch: refactor/x -> main
+Author: alice
+
+CI checks:
+- failed: (none)
+- pending: (none)
+
+Diff:
+diff --git a/x b/x
+
+Return ONLY JSON matching this schema (no prose before or after):
+{
+  "summary": "string (overall review summary, 2-5 sentences)",
+  "comments": [
+    {
+      "path": "file path from diff",
+      "line": <int, line number in NEW file>,
+      "side": "RIGHT" | "LEFT",
+      "body": "review comment",
+      "severity": "blocker" | "major" | "minor" | "nit"
+    }
+  ]
+}

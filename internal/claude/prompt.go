@@ -1,0 +1,80 @@
+package claude
+
+import (
+	"fmt"
+	"strings"
+)
+
+type PromptInput struct {
+	Title         string
+	HeadRef       string
+	BaseRef       string
+	Author        string
+	JiraKey       string
+	JiraSummary   string
+	JiraDesc      string
+	FailedChecks  []string
+	PendingChecks []string
+	Diff          string
+	DiffTruncated bool
+}
+
+const schemaBlock = `Return ONLY JSON matching this schema (no prose before or after):
+{
+  "summary": "string (overall review summary, 2-5 sentences)",
+  "comments": [
+    {
+      "path": "file path from diff",
+      "line": <int, line number in NEW file>,
+      "side": "RIGHT" | "LEFT",
+      "body": "review comment",
+      "severity": "blocker" | "major" | "minor" | "nit"
+    }
+  ]
+}`
+
+func BuildPrompt(in PromptInput) string {
+	var b strings.Builder
+	b.WriteString("Use skill caveman:caveman-review.\n\n")
+	fmt.Fprintf(&b, "PR: %s\n", in.Title)
+	fmt.Fprintf(&b, "Branch: %s -> %s\n", in.HeadRef, in.BaseRef)
+	fmt.Fprintf(&b, "Author: %s\n\n", in.Author)
+
+	if in.JiraKey != "" {
+		b.WriteString("Jira issue:\n")
+		fmt.Fprintf(&b, "%s: %s\n", in.JiraKey, in.JiraSummary)
+		if in.JiraDesc != "" {
+			b.WriteString(in.JiraDesc)
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("CI checks:\n")
+	if len(in.FailedChecks) > 0 {
+		fmt.Fprintf(&b, "- failed: %s\n", strings.Join(in.FailedChecks, ", "))
+	} else {
+		b.WriteString("- failed: (none)\n")
+	}
+	if len(in.PendingChecks) > 0 {
+		fmt.Fprintf(&b, "- pending: %s\n", strings.Join(in.PendingChecks, ", "))
+	} else {
+		b.WriteString("- pending: (none)\n")
+	}
+	b.WriteString("\n")
+
+	if in.DiffTruncated {
+		b.WriteString("Diff (TRUNCATED — review may be incomplete):\n")
+	} else {
+		b.WriteString("Diff:\n")
+	}
+	b.WriteString(in.Diff)
+	if !strings.HasSuffix(in.Diff, "\n") {
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+
+	b.WriteString(schemaBlock)
+	b.WriteString("\n")
+	return b.String()
+}

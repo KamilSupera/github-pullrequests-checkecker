@@ -1,0 +1,31 @@
+Use skill caveman:caveman-review.
+
+PR: Add caching
+Branch: feat/cache -> develop
+Author: kamil
+
+Jira issue:
+ABC-123: Add caching
+We need a TTL cache.
+
+CI checks:
+- failed: test
+- pending: (none)
+
+Diff:
+diff --git a/foo.go b/foo.go
++func cached() {}
+
+Return ONLY JSON matching this schema (no prose before or after):
+{
+  "summary": "string (overall review summary, 2-5 sentences)",
+  "comments": [
+    {
+      "path": "file path from diff",
+      "line": <int, line number in NEW file>,
+      "side": "RIGHT" | "LEFT",
+      "body": "review comment",
+      "severity": "blocker" | "major" | "minor" | "nit"
+    }
+  ]
+}
