@@ -2,11 +2,19 @@ package pipeline
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/ksupera/prcheck/internal/claude"
 	"github.com/ksupera/prcheck/internal/github"
 	"github.com/ksupera/prcheck/internal/jira"
 )
+
+var ErrEmptyDiff = errors.New("no diff returned for PR")
 
 type JiraIssue = jira.Issue
 
@@ -45,6 +53,9 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (int64, er
 	diff, err := d.GH.FetchDiff(ctx, prURL)
 	if err != nil {
 		return 0, err
+	}
+	if strings.TrimSpace(diff) == "" {
+		return 0, ErrEmptyDiff
 	}
 	cappedDiff, truncated := CapDiff(diff, DefaultDiffCap)
 
@@ -103,7 +114,20 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (int64, er
 	}
 	id, err := d.Post.PostPendingReview(ctx, prURL, review.Summary, ghComments)
 	if err != nil {
+		dumpFailedReview(prURL, review.Summary, ghComments)
 		return 0, err
 	}
 	return id, nil
+}
+
+// dumpFailedReview persists the review payload to /tmp so a failed POST
+// doesn't lose the Claude output. Best-effort: errors are swallowed.
+func dumpFailedReview(prURL, summary string, comments []github.ReviewComment) {
+	safe := strings.NewReplacer("/", "_", ":", "_").Replace(prURL)
+	path := filepath.Join(os.TempDir(), fmt.Sprintf("prcheck-%s-%d.json", safe, time.Now().Unix()))
+	body, mErr := github.BuildReviewBody(summary, comments)
+	if mErr != nil {
+		return
+	}
+	_ = os.WriteFile(path, body, 0o600)
 }

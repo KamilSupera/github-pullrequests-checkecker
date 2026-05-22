@@ -2,6 +2,10 @@ package pipeline
 
 import (
 	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ksupera/prcheck/internal/claude"
@@ -86,5 +90,64 @@ func TestRun_HappyPath(t *testing.T) {
 		if events[i] != w {
 			t.Errorf("events[%d] = %q, want %q", i, events[i], w)
 		}
+	}
+}
+
+type emptyDiffFetcher struct{ fakeFetcher }
+
+func (emptyDiffFetcher) FetchDiff(ctx context.Context, url string) (string, error) {
+	return "", nil
+}
+
+func TestRun_EmptyDiffAborts(t *testing.T) {
+	deps := Deps{
+		GH:     emptyDiffFetcher{},
+		Jira:   fakeJira{},
+		Claude: fakeClaude{},
+		Post:   &fakePoster{},
+	}
+	_, err := Run(t.Context(), deps, "https://github.com/o/r/pull/1", func(Event) {})
+	if !errors.Is(err, ErrEmptyDiff) {
+		t.Fatalf("want ErrEmptyDiff, got %v", err)
+	}
+}
+
+type failingPoster struct{}
+
+func (failingPoster) PostPendingReview(ctx context.Context, url, summary string, c []github.ReviewComment) (int64, error) {
+	return 0, errors.New("boom")
+}
+
+func TestRun_PostFailureDumpsReview(t *testing.T) {
+	deps := Deps{
+		GH:     fakeFetcher{},
+		Jira:   fakeJira{},
+		Claude: fakeClaude{},
+		Post:   failingPoster{},
+	}
+	_, err := Run(t.Context(), deps, "https://github.com/o/r/pull/99", func(Event) {})
+	if err == nil {
+		t.Fatal("expected post failure error")
+	}
+
+	entries, _ := os.ReadDir(os.TempDir())
+	var found string
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "prcheck-") && strings.Contains(e.Name(), "pull_99") && strings.HasSuffix(e.Name(), ".json") {
+			found = filepath.Join(os.TempDir(), e.Name())
+			break
+		}
+	}
+	if found == "" {
+		t.Fatal("expected dumped review JSON in TempDir matching prcheck-*pull_99*.json")
+	}
+	defer os.Remove(found)
+
+	body, err := os.ReadFile(found)
+	if err != nil {
+		t.Fatalf("read dump: %v", err)
+	}
+	if !strings.Contains(string(body), `"body":"LGTM"`) {
+		t.Errorf("dump missing review summary: %s", body)
 	}
 }
