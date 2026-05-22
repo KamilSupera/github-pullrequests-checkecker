@@ -1,0 +1,6 @@
+/prcheck
+*.test
+*.out
+.idea/
+.vscode/
+testdata/.fake-bin/
