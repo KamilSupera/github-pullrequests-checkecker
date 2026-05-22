@@ -13,7 +13,6 @@ import (
 	"github.com/ksupera/prcheck/internal/claude"
 	"github.com/ksupera/prcheck/internal/config"
 	"github.com/ksupera/prcheck/internal/github"
-	"github.com/ksupera/prcheck/internal/jira"
 	"github.com/ksupera/prcheck/internal/pipeline"
 	"github.com/ksupera/prcheck/internal/tui"
 )
@@ -42,7 +41,7 @@ func run() error {
 	}
 	_ = cfg.Debug // hook for future log routing
 
-	jiraClient := jira.NewClient(cfg.JiraBaseURL, cfg.JiraEmail, cfg.JiraToken)
+	jiraFetcher := claude.JiraMCPFetcher{}
 	ghClient := github.CLIClient{}
 	poster := github.Reviewer{}
 
@@ -59,7 +58,7 @@ func run() error {
 		}
 		deps := pipeline.Deps{
 			GH:     ghClient,
-			Jira:   jiraClient,
+			Jira:   jiraFetcher,
 			Claude: claudeAdapter{},
 			Post:   poster,
 		}
