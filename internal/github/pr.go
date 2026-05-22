@@ -112,3 +112,29 @@ func FetchPRDetail(ctx context.Context, url string) (*PRDetail, error) {
 	d.Author = d.AuthorRaw.Login
 	return &d, nil
 }
+
+func FetchDiff(ctx context.Context, url string) (string, error) {
+	out, err := runGH(ctx, "pr", "diff", url)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+// CLIClient and Reviewer are thin adapters that satisfy the pipeline
+// interfaces by delegating to the package-level functions.
+
+type CLIClient struct{}
+
+func (CLIClient) FetchDiff(ctx context.Context, url string) (string, error) {
+	return FetchDiff(ctx, url)
+}
+func (CLIClient) FetchPRDetail(ctx context.Context, url string) (*PRDetail, error) {
+	return FetchPRDetail(ctx, url)
+}
+
+type Reviewer struct{}
+
+func (Reviewer) PostPendingReview(ctx context.Context, prURL, summary string, c []ReviewComment) (int64, error) {
+	return PostPendingReview(ctx, prURL, summary, c)
+}
