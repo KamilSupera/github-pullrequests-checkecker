@@ -72,6 +72,8 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, rp runPipelineFn, open o
 		diffs:    map[string]string{},
 		diffVP:   viewport.New(80, 20),
 		listH:    20,
+		termW:    80,
+		termH:    24,
 		spinner:  sp,
 	}
 }
