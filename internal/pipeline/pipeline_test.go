@@ -16,7 +16,7 @@ import (
 type fakeFetcher struct{}
 
 func (fakeFetcher) FetchDiff(ctx context.Context, url string) (string, error) {
-	return "diff --git a/x b/x\n+content\n", nil
+	return "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n+content\n", nil
 }
 func (fakeFetcher) FetchPRDetail(ctx context.Context, url string) (*github.PRDetail, error) {
 	d := &github.PRDetail{Body: "Implements ABC-123", Checks: []github.Check{

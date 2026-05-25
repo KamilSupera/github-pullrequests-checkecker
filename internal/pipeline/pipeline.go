@@ -126,18 +126,33 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (*Result, 
 	if err != nil {
 		return nil, err
 	}
-	// Filter out low-priority comments. Reviews only carry blocker/major.
+	// Filter out low-priority comments (post-step keeps blocker/major).
 	var kept []claude.ReviewComment
-	dropped := 0
+	droppedSeverity := 0
 	for _, c := range review.Comments {
 		if c.Severity == "blocker" || c.Severity == "major" {
 			kept = append(kept, c)
 		} else {
-			dropped++
+			droppedSeverity++
 		}
 	}
-	claudeNote := fmt.Sprintf("got review in %s: %d kept (%d dropped: nit/minor)",
-		time.Since(start).Truncate(time.Second), len(kept), dropped)
+
+	// Filter against the diff so GitHub doesn't reject the POST as 422
+	// for comments referencing lines outside any hunk.
+	valid := ParseValidLines(diff)
+	var addressable []claude.ReviewComment
+	droppedOutOfDiff := 0
+	for _, c := range kept {
+		if valid.Allows(c.Path, c.Line, c.Side) {
+			addressable = append(addressable, c)
+		} else {
+			droppedOutOfDiff++
+		}
+	}
+	kept = addressable
+
+	claudeNote := fmt.Sprintf("got review in %s: %d kept (%d nit/minor, %d out-of-diff)",
+		time.Since(start).Truncate(time.Second), len(kept), droppedSeverity, droppedOutOfDiff)
 	emit(Event{Step: "claude", Status: "done", Note: claudeNote})
 
 	// post
@@ -154,6 +169,20 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (*Result, 
 	}
 	id, err := d.Post.PostPendingReview(ctx, prURL, review.Summary, ghComments)
 	if err != nil {
+		// Retry once with no inline comments — most 422s are about a
+		// single bad line reference; the summary alone is still useful.
+		if strings.Contains(err.Error(), "HTTP 422") || strings.Contains(err.Error(), "Unprocessable Entity") {
+			emit(Event{Step: "post", Status: "warn", Err: err, Note: "GitHub rejected inline comments (422); retrying summary-only"})
+			id2, err2 := d.Post.PostPendingReview(ctx, prURL, review.Summary+
+				fmt.Sprintf("\n\n_(%d inline comments dropped: GitHub rejected one or more line references.)_", len(ghComments)),
+				nil)
+			if err2 == nil {
+				emit(Event{Step: "post", Status: "done", Note: fmt.Sprintf("review #%d posted (summary only)", id2)})
+				return &Result{ID: id2, Summary: review.Summary, Comments: nil}, nil
+			}
+			dumpFailedReview(prURL, review.Summary, ghComments)
+			return nil, err2
+		}
 		dumpFailedReview(prURL, review.Summary, ghComments)
 		return nil, err
 	}
