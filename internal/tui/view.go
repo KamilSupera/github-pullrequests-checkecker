@@ -101,7 +101,8 @@ func (m Model) View() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderActiveColor).
 		Width(paneW).
-		Height(paneH)
+		Height(paneH).
+		MaxHeight(paneH + 2)
 
 	header := m.renderTabs()
 	left := m.renderList()
@@ -318,6 +319,7 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 		BorderForeground(borderColor).
 		Width(paneW).
 		Height(detailH).
+		MaxHeight(detailH + 2).
 		Render(m.renderDetail())
 
 	commentsBox := lipgloss.NewStyle().
@@ -325,15 +327,17 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 		BorderForeground(borderColor).
 		Width(paneW).
 		Height(commentsH).
-		Render(m.renderCommentsWindow(commentsH))
+		MaxHeight(commentsH + 2).
+		Render(m.renderCommentsWindow(commentsH, paneW))
 
 	return lipgloss.JoinVertical(lipgloss.Left, detailBox, commentsBox)
 }
 
 // renderCommentsWindow returns the comments content sliced to the
 // available height, with a scroll indicator on the last row when the
-// content overflows.
-func (m Model) renderCommentsWindow(h int) string {
+// content overflows. Each line is clipped to the pane width so the
+// bordered box never expands vertically due to terminal wrapping.
+func (m Model) renderCommentsWindow(h, paneW int) string {
 	full := m.renderComments()
 	if full == "" {
 		return ""
@@ -370,7 +374,28 @@ func (m Model) renderCommentsWindow(h int) string {
 		}
 		visible = append(visible, dim.Render(fmt.Sprintf("  %s%s %d/%d  J/K scroll", up, down, end, len(lines))))
 	}
+	for i, ln := range visible {
+		if lipgloss.Width(ln) > paneW {
+			visible[i] = clipToWidth(ln, paneW)
+		}
+	}
 	return strings.Join(visible, "\n")
+}
+
+// clipToWidth truncates s so its visible width does not exceed w. It
+// preserves ANSI escape sequences; only printable runes are counted.
+func clipToWidth(s string, w int) string {
+	if lipgloss.Width(s) <= w {
+		return s
+	}
+	// Re-render rune by rune until width exceeds w. We approximate by
+	// trimming runes off the end and re-measuring; cheap for the rare
+	// over-wide case.
+	runes := []rune(s)
+	for len(runes) > 0 && lipgloss.Width(string(runes)) > w {
+		runes = runes[:len(runes)-1]
+	}
+	return string(runes)
 }
 
 func (m Model) renderRight() string {
