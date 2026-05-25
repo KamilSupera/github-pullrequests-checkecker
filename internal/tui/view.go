@@ -2,12 +2,19 @@ package tui
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/ksupera/prcheck/internal/github"
+)
+
+var (
+	reHiddenMarker = regexp.MustCompile(`(?m)^\s*\[//\]:\s*<>\s*\(.*\)\s*$`)
+	reHTMLTag      = regexp.MustCompile(`</?[a-zA-Z][^>]*>`)
+	reBlankLines   = regexp.MustCompile(`\n{3,}`)
 )
 
 // Theme — Blade Runner amber. Warm yellows and oranges against a near-
@@ -468,8 +475,9 @@ func (m Model) renderComments() string {
 				state = badgeCommented.Render(r.State)
 			}
 			fmt.Fprintf(&b, "%s %s %s\n", state, authorTag.Render("@"+r.Author()), dim.Render(shortTime(r.SubmittedAt)))
-			if strings.TrimSpace(r.Body) != "" {
-				for _, line := range wrap(r.Body, bodyW) {
+			body := cleanCommentBody(r.Body)
+			if body != "" {
+				for _, line := range wrap(body, bodyW) {
 					fmt.Fprintf(&b, "  %s\n", line)
 				}
 			}
@@ -482,8 +490,12 @@ func (m Model) renderComments() string {
 		}
 		fmt.Fprintf(&b, "%s\n", repoHeader.Render(fmt.Sprintf("◆ Comments (%d)", len(d.Comments))))
 		for _, c := range d.Comments {
+			body := cleanCommentBody(c.Body)
+			if body == "" {
+				continue
+			}
 			fmt.Fprintf(&b, "%s %s\n", authorTag.Render("@"+c.Author()), dim.Render(shortTime(c.CreatedAt)))
-			for _, line := range wrap(c.Body, bodyW) {
+			for _, line := range wrap(body, bodyW) {
 				fmt.Fprintf(&b, "  %s\n", line)
 			}
 		}
@@ -495,8 +507,9 @@ func (m Model) renderComments() string {
 		}
 		fmt.Fprintf(&b, "%s\n", repoHeader.Render(fmt.Sprintf("◆ Inline (%d)", len(d.Inline))))
 		for _, ic := range d.Inline {
+			body := cleanCommentBody(ic.Body)
 			fmt.Fprintf(&b, "%s %s\n", lipgloss.NewStyle().Foreground(colPink).Render(fmt.Sprintf("%s:%d", ic.Path, ic.Line)), authorTag.Render("@"+ic.User.Login))
-			for _, line := range wrap(ic.Body, bodyW) {
+			for _, line := range wrap(body, bodyW) {
 				fmt.Fprintf(&b, "  %s\n", line)
 			}
 		}
@@ -512,8 +525,9 @@ func shortTime(s string) string {
 	return s
 }
 
-// wrap splits s into lines at most w chars wide, respecting any
-// existing newlines. Long words are hard-cut.
+// wrap splits s into lines at most w columns wide, respecting any
+// existing newlines. Operates on runes (not bytes) so multibyte
+// characters never get sliced mid-codepoint.
 func wrap(s string, w int) []string {
 	if w < 10 {
 		w = 10
@@ -524,20 +538,39 @@ func wrap(s string, w int) []string {
 			out = append(out, "")
 			continue
 		}
-		for len(para) > w {
+		runes := []rune(para)
+		for len(runes) > w {
 			cut := w
-			// try to break at last space within window
-			if sp := strings.LastIndex(para[:w], " "); sp > w/2 {
-				cut = sp
+			// prefer breaking at the last space inside the window
+			for i := w - 1; i > w/2; i-- {
+				if runes[i] == ' ' {
+					cut = i
+					break
+				}
 			}
-			out = append(out, para[:cut])
-			para = strings.TrimLeft(para[cut:], " ")
+			out = append(out, string(runes[:cut]))
+			// skip any leading spaces on the next slice
+			j := cut
+			for j < len(runes) && runes[j] == ' ' {
+				j++
+			}
+			runes = runes[j:]
 		}
-		if para != "" {
-			out = append(out, para)
+		if len(runes) > 0 {
+			out = append(out, string(runes))
 		}
 	}
 	return out
+}
+
+// cleanCommentBody strips bot-noise so the comments box stays readable.
+// Removes hidden markdown markers, HTML tags, and collapses runs of
+// blank lines.
+func cleanCommentBody(s string) string {
+	s = reHiddenMarker.ReplaceAllString(s, "")
+	s = reHTMLTag.ReplaceAllString(s, "")
+	s = reBlankLines.ReplaceAllString(s, "\n\n")
+	return strings.TrimSpace(s)
 }
 
 func (m Model) renderProgress() string {
