@@ -244,8 +244,91 @@ func (m Model) renderDetail() string {
 		dim.Render(fmt.Sprintf("%d pending", q)),
 	)
 	fmt.Fprintf(&b, "Checks:  %s\n", checks)
+
+	paneW, _ := paneInnerSize(m.termW, m.termH)
+	bodyW := paneW - 2
+
+	if len(d.Reviews) > 0 {
+		fmt.Fprintf(&b, "\n%s\n", repoHeader.Render("Reviews"))
+		for _, r := range d.Reviews {
+			state := r.State
+			switch state {
+			case "APPROVED":
+				state = pass.Render("✓ APPROVED")
+			case "CHANGES_REQUESTED":
+				state = fail.Render("✗ CHANGES_REQUESTED")
+			case "COMMENTED":
+				state = dim.Render("• COMMENTED")
+			default:
+				state = dim.Render(state)
+			}
+			fmt.Fprintf(&b, "%s @%s %s\n", state, r.Author(), dim.Render(shortTime(r.SubmittedAt)))
+			if strings.TrimSpace(r.Body) != "" {
+				for _, line := range wrap(r.Body, bodyW) {
+					fmt.Fprintf(&b, "  %s\n", line)
+				}
+			}
+		}
+	}
+
+	if len(d.Comments) > 0 {
+		fmt.Fprintf(&b, "\n%s\n", repoHeader.Render(fmt.Sprintf("Comments (%d)", len(d.Comments))))
+		for _, c := range d.Comments {
+			fmt.Fprintf(&b, "@%s %s\n", c.Author(), dim.Render(shortTime(c.CreatedAt)))
+			for _, line := range wrap(c.Body, bodyW) {
+				fmt.Fprintf(&b, "  %s\n", line)
+			}
+		}
+	}
+
+	if len(d.Inline) > 0 {
+		fmt.Fprintf(&b, "\n%s\n", repoHeader.Render(fmt.Sprintf("Inline (%d)", len(d.Inline))))
+		for _, ic := range d.Inline {
+			fmt.Fprintf(&b, "%s @%s\n", dim.Render(fmt.Sprintf("%s:%d", ic.Path, ic.Line)), ic.User.Login)
+			for _, line := range wrap(ic.Body, bodyW) {
+				fmt.Fprintf(&b, "  %s\n", line)
+			}
+		}
+	}
+
 	fmt.Fprintf(&b, "\n%s\n", hint.Render("Press Enter to run review."))
 	return b.String()
+}
+
+// shortTime returns the date portion of an ISO timestamp (YYYY-MM-DD).
+func shortTime(s string) string {
+	if len(s) >= 10 {
+		return s[:10]
+	}
+	return s
+}
+
+// wrap splits s into lines at most w chars wide, respecting any
+// existing newlines. Long words are hard-cut.
+func wrap(s string, w int) []string {
+	if w < 10 {
+		w = 10
+	}
+	var out []string
+	for _, para := range strings.Split(s, "\n") {
+		if para == "" {
+			out = append(out, "")
+			continue
+		}
+		for len(para) > w {
+			cut := w
+			// try to break at last space within window
+			if sp := strings.LastIndex(para[:w], " "); sp > w/2 {
+				cut = sp
+			}
+			out = append(out, para[:cut])
+			para = strings.TrimLeft(para[cut:], " ")
+		}
+		if para != "" {
+			out = append(out, para)
+		}
+	}
+	return out
 }
 
 func (m Model) renderProgress() string {

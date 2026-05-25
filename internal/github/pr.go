@@ -69,8 +69,44 @@ type Check struct {
 
 type PRDetail struct {
 	PR
-	Body   string  `json:"body"`
-	Checks []Check `json:"statusCheckRollup"`
+	Body     string          `json:"body"`
+	Checks   []Check         `json:"statusCheckRollup"`
+	Comments []Comment       `json:"comments"`
+	Reviews  []Review        `json:"reviews"`
+	Inline   []InlineComment `json:"-"`
+}
+
+type Comment struct {
+	AuthorRaw struct {
+		Login string `json:"login"`
+	} `json:"author"`
+	Body      string `json:"body"`
+	CreatedAt string `json:"createdAt"`
+}
+
+func (c Comment) Author() string { return c.AuthorRaw.Login }
+
+type Review struct {
+	AuthorRaw struct {
+		Login string `json:"login"`
+	} `json:"author"`
+	Body      string `json:"body"`
+	State     string `json:"state"` // APPROVED, CHANGES_REQUESTED, COMMENTED, PENDING
+	SubmittedAt string `json:"submittedAt"`
+}
+
+func (r Review) Author() string { return r.AuthorRaw.Login }
+
+// InlineComment is a per-line review comment fetched via `gh api`.
+type InlineComment struct {
+	ID        int64  `json:"id"`
+	Path      string `json:"path"`
+	Line      int    `json:"line"`
+	Body      string `json:"body"`
+	CreatedAt string `json:"created_at"`
+	User      struct {
+		Login string `json:"login"`
+	} `json:"user"`
 }
 
 func runGH(ctx context.Context, args ...string) ([]byte, error) {
@@ -109,7 +145,7 @@ func SearchPRs(ctx context.Context, q Query) ([]PR, error) {
 func FetchPRDetail(ctx context.Context, url string) (*PRDetail, error) {
 	out, err := runGH(ctx,
 		"pr", "view", url,
-		"--json", "number,title,url,body,headRefName,baseRefName,author,statusCheckRollup",
+		"--json", "number,title,url,body,headRefName,baseRefName,author,statusCheckRollup,comments,reviews",
 	)
 	if err != nil {
 		return nil, err
@@ -119,7 +155,31 @@ func FetchPRDetail(ctx context.Context, url string) (*PRDetail, error) {
 		return nil, fmt.Errorf("parse gh pr view: %w", err)
 	}
 	d.Author = d.AuthorRaw.Login
+
+	// Best-effort inline review comments via gh api. If it fails we
+	// still return the detail; inline comments aren't critical.
+	if inline, err := fetchInlineComments(ctx, url); err == nil {
+		// Inline comments are attached as synthetic top-level "comments"
+		// in the detail. They render below the discussion section.
+		d.Inline = inline
+	}
 	return &d, nil
+}
+
+func fetchInlineComments(ctx context.Context, prURL string) ([]InlineComment, error) {
+	owner, repo, num, err := parseRepoFromURL(prURL)
+	if err != nil {
+		return nil, err
+	}
+	out, err := runGH(ctx, "api", fmt.Sprintf("repos/%s/%s/pulls/%s/comments?per_page=100", owner, repo, num))
+	if err != nil {
+		return nil, err
+	}
+	var c []InlineComment
+	if err := json.Unmarshal(out, &c); err != nil {
+		return nil, fmt.Errorf("parse inline comments: %w", err)
+	}
+	return c, nil
 }
 
 func FetchDiff(ctx context.Context, url string) (string, error) {
