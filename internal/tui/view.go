@@ -11,8 +11,14 @@ import (
 )
 
 var (
-	tabActive   = lipgloss.NewStyle().Bold(true).Underline(true).Padding(0, 1)
-	tabInactive = lipgloss.NewStyle().Padding(0, 1).Foreground(lipgloss.Color("241"))
+	tabActive = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("231")).      // bright white
+			Background(lipgloss.Color("33")).       // blue bar
+			Padding(0, 1)
+	tabInactive = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("250")).      // light grey, always visible
+			Padding(0, 1)
 	errStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
 	dim         = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	pass        = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
@@ -73,7 +79,7 @@ func (m Model) renderTabs() string {
 			parts = append(parts, tabInactive.Render(label))
 		}
 	}
-	return strings.Join(parts, "  ")
+	return strings.Join(parts, dim.Render(" │ "))
 }
 
 func (m Model) renderList() string {
