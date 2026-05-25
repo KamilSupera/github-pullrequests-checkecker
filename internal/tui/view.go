@@ -59,11 +59,18 @@ func (m Model) View() string {
 func (m Model) renderTabs() string {
 	var parts []string
 	for i := Tab(0); i < 3; i++ {
-		s := i.Label()
-		if i == m.tab {
-			parts = append(parts, tabActive.Render(s))
+		label := i.Label()
+		if prs, loaded := m.prsByTab[i]; loaded {
+			label = fmt.Sprintf("%s (%d)", label, len(prs))
+		} else if err := m.loadErr[i]; err != nil {
+			label = fmt.Sprintf("%s (!)", label)
 		} else {
-			parts = append(parts, tabInactive.Render(s))
+			label = fmt.Sprintf("%s (…)", label)
+		}
+		if i == m.tab {
+			parts = append(parts, tabActive.Render(label))
+		} else {
+			parts = append(parts, tabInactive.Render(label))
 		}
 	}
 	return strings.Join(parts, "  ")
