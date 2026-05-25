@@ -45,15 +45,15 @@ func paneInnerSize(termW, termH int) (w, h int) {
 
 func (m Model) View() string {
 	paneW, paneH := paneInnerSize(m.termW, m.termH)
-	pane := lipgloss.NewStyle().
+	leftPane := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		Width(paneW).
 		Height(paneH)
 
 	header := m.renderTabs()
 	left := m.renderList()
-	right := m.renderRight()
-	body := lipgloss.JoinHorizontal(lipgloss.Top, pane.Render(left), pane.Render(right))
+	right := m.renderRightSplit(paneW, paneH)
+	body := lipgloss.JoinHorizontal(lipgloss.Top, leftPane.Render(left), right)
 	footerText := "j/k move  Space detail  d diff  Enter review  Tab switch  g/G top/bot  o open  r refresh  q quit"
 	if m.viewingDiff {
 		footerText = "j/k scroll  pgup/pgdn page  d/Esc back  q quit"
@@ -194,6 +194,51 @@ func groupByRepo(prs []github.PR) []repoGroup {
 	return groups
 }
 
+// renderRightSplit returns the right column as two stacked bordered
+// boxes: detail on top, comments below. Total height equals paneH+2
+// so it matches the left pane's outer height.
+func (m Model) renderRightSplit(paneW, paneH int) string {
+	// Diff / progress / review-result keep the original full-height pane.
+	if m.viewingDiff || m.running || m.lastReview != nil {
+		fullPane := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			Width(paneW).
+			Height(paneH)
+		return fullPane.Render(m.renderRight())
+	}
+
+	// Allocate: detail gets 8 inner rows, comments gets the rest.
+	// Each bordered box adds 2 rows; both boxes together: (d+2)+(c+2)
+	// must equal paneH+2, so d+c = paneH-2.
+	detailH := 8
+	commentsH := paneH - 2 - detailH
+	if commentsH < 3 {
+		// not enough room — give comments at least 3 rows by shrinking detail
+		detailH = paneH - 2 - 3
+		if detailH < 3 {
+			detailH = 3
+		}
+		commentsH = paneH - 2 - detailH
+		if commentsH < 1 {
+			commentsH = 1
+		}
+	}
+
+	detailBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Width(paneW).
+		Height(detailH).
+		Render(m.renderDetail())
+
+	commentsBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Width(paneW).
+		Height(commentsH).
+		Render(m.renderComments())
+
+	return lipgloss.JoinVertical(lipgloss.Left, detailBox, commentsBox)
+}
+
 func (m Model) renderRight() string {
 	if m.viewingDiff {
 		return m.diffVP.View()
@@ -226,7 +271,6 @@ func (m Model) renderDetail() string {
 	fmt.Fprintf(&b, "Title:   %s\n", d.Title)
 	fmt.Fprintf(&b, "Branch:  %s -> %s\n", d.HeadRefName, d.BaseRefName)
 	fmt.Fprintf(&b, "Author:  %s\n", d.Author)
-	// checks
 	var p, f, q int
 	for _, c := range d.Checks {
 		switch {
@@ -244,12 +288,31 @@ func (m Model) renderDetail() string {
 		dim.Render(fmt.Sprintf("%d pending", q)),
 	)
 	fmt.Fprintf(&b, "Checks:  %s\n", checks)
+	fmt.Fprintf(&b, "\n%s", hint.Render("Press Enter to run review."))
+	return b.String()
+}
+
+// renderComments returns reviews + discussion + inline comments. Empty
+// string when nothing to show (so the comments box can collapse).
+func (m Model) renderComments() string {
+	pr, ok := m.currentPR()
+	if !ok {
+		return ""
+	}
+	d := m.details[pr.URL]
+	if d == nil {
+		return ""
+	}
+	if len(d.Reviews) == 0 && len(d.Comments) == 0 && len(d.Inline) == 0 {
+		return dim.Render("(no comments)")
+	}
 
 	paneW, _ := paneInnerSize(m.termW, m.termH)
 	bodyW := paneW - 2
+	var b strings.Builder
 
 	if len(d.Reviews) > 0 {
-		fmt.Fprintf(&b, "\n%s\n", repoHeader.Render("Reviews"))
+		fmt.Fprintf(&b, "%s\n", repoHeader.Render("Reviews"))
 		for _, r := range d.Reviews {
 			state := r.State
 			switch state {
@@ -272,7 +335,10 @@ func (m Model) renderDetail() string {
 	}
 
 	if len(d.Comments) > 0 {
-		fmt.Fprintf(&b, "\n%s\n", repoHeader.Render(fmt.Sprintf("Comments (%d)", len(d.Comments))))
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		fmt.Fprintf(&b, "%s\n", repoHeader.Render(fmt.Sprintf("Comments (%d)", len(d.Comments))))
 		for _, c := range d.Comments {
 			fmt.Fprintf(&b, "@%s %s\n", c.Author(), dim.Render(shortTime(c.CreatedAt)))
 			for _, line := range wrap(c.Body, bodyW) {
@@ -282,7 +348,10 @@ func (m Model) renderDetail() string {
 	}
 
 	if len(d.Inline) > 0 {
-		fmt.Fprintf(&b, "\n%s\n", repoHeader.Render(fmt.Sprintf("Inline (%d)", len(d.Inline))))
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		fmt.Fprintf(&b, "%s\n", repoHeader.Render(fmt.Sprintf("Inline (%d)", len(d.Inline))))
 		for _, ic := range d.Inline {
 			fmt.Fprintf(&b, "%s @%s\n", dim.Render(fmt.Sprintf("%s:%d", ic.Path, ic.Line)), ic.User.Login)
 			for _, line := range wrap(ic.Body, bodyW) {
@@ -290,9 +359,7 @@ func (m Model) renderDetail() string {
 			}
 		}
 	}
-
-	fmt.Fprintf(&b, "\n%s\n", hint.Render("Press Enter to run review."))
-	return b.String()
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // shortTime returns the date portion of an ISO timestamp (YYYY-MM-DD).
