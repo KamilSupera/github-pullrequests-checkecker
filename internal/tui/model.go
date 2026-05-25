@@ -106,10 +106,24 @@ func (m Model) loadTab(t Tab) tea.Cmd {
 	}
 }
 
+// currentPR returns the PR under the cursor. Cursor indexes the
+// display-order list (PRs flattened in group iteration order), so
+// keystrokes and rendering stay in sync.
 func (m Model) currentPR() (github.PR, bool) {
-	prs := m.prsByTab[m.tab]
-	if len(prs) == 0 || m.cursor < 0 || m.cursor >= len(prs) {
+	flat := m.flatGroupedPRs()
+	if len(flat) == 0 || m.cursor < 0 || m.cursor >= len(flat) {
 		return github.PR{}, false
 	}
-	return prs[m.cursor], true
+	return flat[m.cursor], true
+}
+
+// flatGroupedPRs returns the PRs of the current tab in the exact order
+// they appear in the rendered list — derived from groupByRepo so the
+// two stay in lockstep.
+func (m Model) flatGroupedPRs() []github.PR {
+	var out []github.PR
+	for _, g := range groupByRepo(m.prsByTab[m.tab]) {
+		out = append(out, g.prs...)
+	}
+	return out
 }
