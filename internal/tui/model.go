@@ -63,7 +63,7 @@ type Model struct {
 func NewModel(loader loaderFn, df detailFn, dfn diffFn, rp runPipelineFn, open openFn) Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.MiniDot
-	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7"))
+	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffb000"))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return Model{

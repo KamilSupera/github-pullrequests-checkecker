@@ -10,25 +10,26 @@ import (
 	"github.com/ksupera/prcheck/internal/github"
 )
 
-// Theme — Catppuccin Mocha-inspired palette. Hex colors degrade
-// gracefully to 256-color when truecolor is unsupported.
+// Theme — Blade Runner amber. Warm yellows and oranges against a near-
+// black backdrop, with a single cool neon-cyan accent for contrast.
+// Hex colors degrade gracefully to 256-color when truecolor is off.
 var (
-	colFG       = lipgloss.Color("#cdd6f4")
-	colSubtext  = lipgloss.Color("#a6adc8")
-	colOverlay  = lipgloss.Color("#6c7086")
-	colMauve    = lipgloss.Color("#cba6f7")
-	colBlue     = lipgloss.Color("#89b4fa")
-	colTeal     = lipgloss.Color("#94e2d5")
-	colGreen    = lipgloss.Color("#a6e3a1")
-	colYellow   = lipgloss.Color("#f9e2af")
-	colPeach    = lipgloss.Color("#fab387")
-	colRed      = lipgloss.Color("#f38ba8")
-	colPink     = lipgloss.Color("#f5c2e7")
-	colSurface0 = lipgloss.Color("#313244")
+	colFG       = lipgloss.Color("#f5e6c8") // warm off-white
+	colSubtext  = lipgloss.Color("#b89e5a") // muted amber
+	colOverlay  = lipgloss.Color("#6b5a2a") // dim amber
+	colMauve    = lipgloss.Color("#ffb000") // PRIMARY: amber yellow
+	colBlue     = lipgloss.Color("#00bfff") // neon cyan accent
+	colTeal     = lipgloss.Color("#ff8800") // deep orange (branch refs)
+	colGreen    = lipgloss.Color("#a0d060") // muted neon green
+	colYellow   = lipgloss.Color("#ffc107") // brighter gold (counts)
+	colPeach    = lipgloss.Color("#ff6f00") // burnt orange (author)
+	colRed      = lipgloss.Color("#ff4444") // alarm red
+	colPink     = lipgloss.Color("#e5a100") // dark amber (inline path)
+	colSurface0 = lipgloss.Color("#1a1305") // near-black warm brown
 
 	tabActive = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(colFG).
+			Foreground(lipgloss.Color("#1a1305")). // dark text on amber bar
 			Background(colMauve).
 			Padding(0, 1)
 	tabInactive = lipgloss.NewStyle().
@@ -54,15 +55,15 @@ var (
 	borderColor       = colOverlay
 	borderActiveColor = colMauve
 
-	// Status badges (filled pills).
+	// Status badges (filled pills) — dark text on neon.
 	badgeApproved = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#1e1e2e")).
+			Foreground(lipgloss.Color("#1a1305")).
 			Background(colGreen).
 			Padding(0, 1)
 	badgeChanges = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#1e1e2e")).
+			Foreground(lipgloss.Color("#1a1305")).
 			Background(colRed).
 			Padding(0, 1)
 	badgeCommented = lipgloss.NewStyle().

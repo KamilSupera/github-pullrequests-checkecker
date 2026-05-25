@@ -18,7 +18,7 @@ var (
 	diffHunkLine = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))  // blue
 	diffFileLine = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
 
-	chromaStyle     = styles.Get("monokai")
+	chromaStyle     = pickChromaStyle()
 	chromaFormatter chroma.Formatter
 )
 
@@ -27,6 +27,18 @@ func init() {
 	if chromaFormatter == nil {
 		chromaFormatter = formatters.Fallback
 	}
+}
+
+// pickChromaStyle prefers a warm/amber-leaning style for the Blade
+// Runner theme. Falls back through alternatives, then to a default
+// style if none of the preferred names exist in the installed chroma.
+func pickChromaStyle() *chroma.Style {
+	for _, name := range []string{"gruvbox", "tango", "solarized-dark", "monokai"} {
+		if s := styles.Get(name); s != nil && s.Name != "" {
+			return s
+		}
+	}
+	return styles.Fallback
 }
 
 // colorizeDiff takes a unified diff and returns the same text with ANSI
