@@ -27,9 +27,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case diffLoadedMsg:
 		if msg.err == nil {
-			m.diffs[msg.url] = msg.diff
+			colored := colorizeDiff(msg.diff)
+			m.diffs[msg.url] = colored
 			if m.viewingDiff {
-				m.diffVP.SetContent(msg.diff)
+				m.diffVP.SetContent(colored)
 				m.diffVP.GotoTop()
 			}
 		}
