@@ -147,12 +147,26 @@ func (m Model) renderFooter() string {
 
 func (m Model) renderTabs() string {
 	var parts []string
-	countStyle := lipgloss.NewStyle().Foreground(colYellow).Bold(true)
+	// Inactive tabs: bright gold count on the default background.
+	inactiveCount := lipgloss.NewStyle().Foreground(colYellow).Bold(true)
+	// Active tab: count rendered as a small dark-on-light pill that
+	// pops against the amber bar.
+	activeCount := lipgloss.NewStyle().
+		Foreground(colMauve).
+		Background(lipgloss.Color("#1a1305")).
+		Bold(true).
+		Padding(0, 1)
 	for i := Tab(0); i < 3; i++ {
 		name := i.Label()
+		active := i == m.tab
 		var count string
 		if prs, loaded := m.prsByTab[i]; loaded {
-			count = countStyle.Render(fmt.Sprintf("%d", len(prs)))
+			n := fmt.Sprintf("%d", len(prs))
+			if active {
+				count = activeCount.Render(n)
+			} else {
+				count = inactiveCount.Render(n)
+			}
 		} else if err := m.loadErr[i]; err != nil {
 			_ = err
 			count = errStyle.Render("!")
@@ -160,7 +174,7 @@ func (m Model) renderTabs() string {
 			count = dim.Render("…")
 		}
 		label := fmt.Sprintf("%s %s", name, count)
-		if i == m.tab {
+		if active {
 			parts = append(parts, tabActive.Render(label))
 		} else {
 			parts = append(parts, tabInactive.Render(label))
