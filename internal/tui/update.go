@@ -321,9 +321,15 @@ func (m Model) loadDiff(url string) tea.Cmd {
 // Program.Send (wired up in cmd/prcheck/main.go via ProgressFromEvent).
 func (m Model) runPipeline(ctx context.Context, prURL string) tea.Cmd {
 	return func() tea.Msg {
-		id, err := m.runPipe(ctx, prURL, func(e pipeline.Event) {
+		res, err := m.runPipe(ctx, prURL, func(e pipeline.Event) {
 			// no-op here; main.go's wrappedEmit forwards events via Program.Send
 		})
-		return reviewDoneMsg{url: prURL, reviewID: id, err: err}
+		msg := reviewDoneMsg{url: prURL, err: err}
+		if res != nil {
+			msg.reviewID = res.ID
+			msg.summary = res.Summary
+			msg.comments = res.Comments
+		}
+		return msg
 	}
 }

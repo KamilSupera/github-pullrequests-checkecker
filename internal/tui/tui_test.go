@@ -34,8 +34,8 @@ func TestModel_ShowsMineTab(t *testing.T) {
 	diff := func(ctx context.Context, url string) (string, error) {
 		return "diff --git a/x b/x\n+stub\n", nil
 	}
-	runPipe := func(ctx context.Context, url string, emit func(pipeline.Event)) (int64, error) {
-		return 7, nil
+	runPipe := func(ctx context.Context, url string, emit func(pipeline.Event)) (*pipeline.Result, error) {
+		return &pipeline.Result{ID: 7}, nil
 	}
 	open := func(url string) error { return nil }
 

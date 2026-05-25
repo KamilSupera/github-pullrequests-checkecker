@@ -31,6 +31,8 @@ type progressMsg struct {
 type reviewDoneMsg struct {
 	url      string
 	reviewID int64
+	summary  string
+	comments []github.ReviewComment
 	err      error
 }
 

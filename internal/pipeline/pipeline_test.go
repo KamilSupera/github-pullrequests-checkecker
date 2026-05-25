@@ -67,7 +67,7 @@ func TestRun_HappyPath(t *testing.T) {
 	}
 
 	var doneSteps []string
-	id, err := Run(t.Context(), deps, "https://github.com/o/r/pull/1", func(e Event) {
+	res, err := Run(t.Context(), deps, "https://github.com/o/r/pull/1", func(e Event) {
 		if e.Status == "done" {
 			doneSteps = append(doneSteps, e.Step)
 		}
@@ -75,8 +75,14 @@ func TestRun_HappyPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run err: %v", err)
 	}
-	if id != 42 {
-		t.Errorf("id = %d", id)
+	if res == nil || res.ID != 42 {
+		t.Errorf("result = %v", res)
+	}
+	if res != nil && res.Summary != "LGTM" {
+		t.Errorf("result.Summary = %q", res.Summary)
+	}
+	if res != nil && len(res.Comments) != 1 {
+		t.Errorf("result.Comments = %v", res.Comments)
 	}
 	if poster.lastSummary != "LGTM" {
 		t.Errorf("summary = %q", poster.lastSummary)
@@ -108,9 +114,12 @@ func TestRun_EmptyDiffAborts(t *testing.T) {
 		Claude: fakeClaude{},
 		Post:   &fakePoster{},
 	}
-	_, err := Run(t.Context(), deps, "https://github.com/o/r/pull/1", func(Event) {})
+	res, err := Run(t.Context(), deps, "https://github.com/o/r/pull/1", func(Event) {})
 	if !errors.Is(err, ErrEmptyDiff) {
 		t.Fatalf("want ErrEmptyDiff, got %v", err)
+	}
+	if res != nil {
+		t.Errorf("expected nil result on error, got %+v", res)
 	}
 }
 

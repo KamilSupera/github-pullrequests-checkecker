@@ -22,7 +22,7 @@ type stepRec struct {
 type loaderFn func(ctx context.Context, q github.Query) ([]github.PR, error)
 type detailFn func(ctx context.Context, url string) (*github.PRDetail, error)
 type diffFn func(ctx context.Context, url string) (string, error)
-type runPipelineFn func(ctx context.Context, prURL string, emit func(pipeline.Event)) (int64, error)
+type runPipelineFn func(ctx context.Context, prURL string, emit func(pipeline.Event)) (*pipeline.Result, error)
 type openFn func(url string) error
 
 type Model struct {

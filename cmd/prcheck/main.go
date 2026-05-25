@@ -49,7 +49,7 @@ func run() error {
 	// stream progress via Program.Send().
 	var program *tea.Program
 
-	runPipe := func(ctx context.Context, prURL string, emit func(pipeline.Event)) (int64, error) {
+	runPipe := func(ctx context.Context, prURL string, emit func(pipeline.Event)) (*pipeline.Result, error) {
 		wrappedEmit := func(e pipeline.Event) {
 			emit(e)
 			if program != nil {

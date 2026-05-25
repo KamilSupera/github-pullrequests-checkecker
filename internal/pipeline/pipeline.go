@@ -16,6 +16,14 @@ import (
 
 var ErrEmptyDiff = errors.New("no diff returned for PR")
 
+// Result is what Run produces on success: the GitHub review ID plus
+// the summary and inline comments the TUI can display.
+type Result struct {
+	ID       int64
+	Summary  string
+	Comments []github.ReviewComment
+}
+
 type JiraIssue = jira.Issue
 
 type GHFetcher interface {
@@ -49,15 +57,15 @@ type Event struct {
 	Err    error  // set when Status=="warn" or "error"
 }
 
-func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (int64, error) {
+func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (*Result, error) {
 	// diff
 	emit(Event{Step: "diff", Status: "start", Note: "fetching unified diff"})
 	diff, err := d.GH.FetchDiff(ctx, prURL)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if strings.TrimSpace(diff) == "" {
-		return 0, ErrEmptyDiff
+		return nil, ErrEmptyDiff
 	}
 	cappedDiff, truncated := CapDiff(diff, DefaultDiffCap)
 	files, addLines, delLines := summarizeDiff(diff)
@@ -71,7 +79,7 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (int64, er
 	emit(Event{Step: "detail", Status: "start", Note: "fetching PR metadata and CI checks"})
 	detail, err := d.GH.FetchPRDetail(ctx, prURL)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	checks := github.SummarizeChecks(detail.Checks)
 	detailNote := fmt.Sprintf("%q by @%s — %d passed, %d failed, %d pending",
@@ -116,7 +124,7 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (int64, er
 	start := time.Now()
 	review, err := d.Claude.Invoke(ctx, prompt)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	emit(Event{Step: "claude", Status: "done", Note: fmt.Sprintf("got review in %s: %d comments", time.Since(start).Truncate(time.Second), len(review.Comments))})
 
@@ -135,10 +143,10 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (int64, er
 	id, err := d.Post.PostPendingReview(ctx, prURL, review.Summary, ghComments)
 	if err != nil {
 		dumpFailedReview(prURL, review.Summary, ghComments)
-		return 0, err
+		return nil, err
 	}
 	emit(Event{Step: "post", Status: "done", Note: fmt.Sprintf("review #%d posted as PENDING", id)})
-	return id, nil
+	return &Result{ID: id, Summary: review.Summary, Comments: ghComments}, nil
 }
 
 // summarizeDiff counts the number of files touched and added/removed

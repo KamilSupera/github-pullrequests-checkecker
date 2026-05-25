@@ -297,7 +297,8 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(borderActiveColor).
 			Width(paneW).
-			Height(paneH)
+			Height(paneH).
+			MaxHeight(paneH + 2)
 		return fullPane.Render(m.renderRight())
 	}
 
@@ -642,9 +643,58 @@ func (m Model) renderReviewResult() string {
 	if m.lastReview.err != nil {
 		return errStyle.Render("Pipeline failed: ") + m.lastReview.err.Error()
 	}
-	return fmt.Sprintf("Pending review #%d posted.\n\n%s",
-		m.lastReview.reviewID,
-		hint.Render("Press o to open in browser, n for next PR (j/k)."))
+	paneW, _ := paneInnerSize(m.termW, m.termH)
+	bodyW := paneW - 2
+
+	var b strings.Builder
+	header := lipgloss.NewStyle().Foreground(colMauve).Bold(true).Render(
+		fmt.Sprintf("✓ Pending review #%d posted", m.lastReview.reviewID),
+	)
+	b.WriteString(header + "\n")
+	b.WriteString(hint.Render("Open in GitHub to submit/edit.") + "\n\n")
+
+	if s := strings.TrimSpace(m.lastReview.summary); s != "" {
+		b.WriteString(repoHeader.Render("◆ Summary") + "\n")
+		for _, line := range wrap(s, bodyW) {
+			b.WriteString(line + "\n")
+		}
+		b.WriteString("\n")
+	}
+
+	if n := len(m.lastReview.comments); n > 0 {
+		b.WriteString(repoHeader.Render(fmt.Sprintf("◆ Inline comments (%d)", n)) + "\n")
+		for _, c := range m.lastReview.comments {
+			loc := lipgloss.NewStyle().Foreground(colPink).Render(fmt.Sprintf("%s:%d", c.Path, c.Line))
+			sev := severityBadge(c.Severity)
+			b.WriteString(sev + " " + loc + "\n")
+			// Body may already include the "[severity] " prefix added in
+			// the pipeline; strip it for the display since we render the
+			// severity badge separately.
+			body := strings.TrimPrefix(c.Body, "["+c.Severity+"] ")
+			for _, line := range wrap(body, bodyW) {
+				b.WriteString("  " + line + "\n")
+			}
+		}
+	}
+
+	b.WriteString("\n" + keyCap.Render("o") + " " + hint.Render("open in browser") + "  " +
+		keyCap.Render("j/k") + " " + hint.Render("next PR"))
+	return b.String()
+}
+
+func severityBadge(sev string) string {
+	style := lipgloss.NewStyle().Bold(true).Padding(0, 1).Foreground(lipgloss.Color("#1a1305"))
+	switch sev {
+	case "blocker":
+		return style.Background(colRed).Render("BLOCKER")
+	case "major":
+		return style.Background(colPeach).Render("MAJOR")
+	case "minor":
+		return style.Background(colYellow).Render("MINOR")
+	case "nit":
+		return style.Background(colOverlay).Foreground(colFG).Render("nit")
+	}
+	return dim.Render(sev)
 }
 
 func truncate(s string, n int) string {
