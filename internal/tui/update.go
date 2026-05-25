@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"sort"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -130,16 +131,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "J", "pgdown":
 		m.commentsOffset += m.commentsH - 1
-		if m.commentsOffset < 0 {
-			m.commentsOffset = 0
-		}
+		m = m.clampCommentsOffset()
 		return m, nil
 
 	case "K", "pgup":
 		m.commentsOffset -= m.commentsH - 1
-		if m.commentsOffset < 0 {
-			m.commentsOffset = 0
-		}
+		m = m.clampCommentsOffset()
 		return m, nil
 
 	case "g", "home":
@@ -231,6 +228,32 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// clampCommentsOffset keeps m.commentsOffset within [0, maxOffset]
+// where maxOffset is total comment lines minus the visible window.
+func (m Model) clampCommentsOffset() Model {
+	full := m.renderComments()
+	if full == "" {
+		m.commentsOffset = 0
+		return m
+	}
+	total := strings.Count(full, "\n") + 1
+	visible := m.commentsH - 1
+	if visible < 1 {
+		visible = 1
+	}
+	max := total - visible
+	if max < 0 {
+		max = 0
+	}
+	if m.commentsOffset > max {
+		m.commentsOffset = max
+	}
+	if m.commentsOffset < 0 {
+		m.commentsOffset = 0
+	}
+	return m
 }
 
 // scrollListIntoView adjusts m.listOffset so the cursor's display line
