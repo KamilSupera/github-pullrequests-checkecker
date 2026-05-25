@@ -13,18 +13,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
-		// Right pane is ~ half the width; subtract some chrome.
-		w := msg.Width/2 - 4
-		if w < 20 {
-			w = 20
-		}
-		h := msg.Height - 6
-		if h < 5 {
-			h = 5
-		}
-		m.diffVP.Width = w
-		m.diffVP.Height = h
-		m.listH = h
+		m.termW = msg.Width
+		m.termH = msg.Height
+		paneW, paneH := paneInnerSize(msg.Width, msg.Height)
+		m.diffVP.Width = paneW
+		m.diffVP.Height = paneH
+		m.listH = paneH
 		m = m.scrollListIntoView()
 		return m, nil
 

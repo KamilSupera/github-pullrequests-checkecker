@@ -13,7 +13,6 @@ import (
 var (
 	tabActive   = lipgloss.NewStyle().Bold(true).Underline(true).Padding(0, 1)
 	tabInactive = lipgloss.NewStyle().Padding(0, 1).Foreground(lipgloss.Color("241"))
-	border      = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
 	errStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
 	dim         = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	pass        = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
@@ -22,11 +21,33 @@ var (
 	repoHeader  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("75"))
 )
 
+// paneInnerSize returns the (width, height) of the CONTENT area inside
+// each of the two panes given the full terminal size. Subtracts:
+//   - 2 chars per pane for left+right border = 4 total
+//   - rows for tab header (1) + footer (1) + breathing room (2) = 4
+func paneInnerSize(termW, termH int) (w, h int) {
+	w = termW/2 - 2
+	if w < 20 {
+		w = 20
+	}
+	h = termH - 4
+	if h < 5 {
+		h = 5
+	}
+	return
+}
+
 func (m Model) View() string {
+	paneW, paneH := paneInnerSize(m.termW, m.termH)
+	pane := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Width(paneW).
+		Height(paneH)
+
 	header := m.renderTabs()
 	left := m.renderList()
 	right := m.renderRight()
-	body := lipgloss.JoinHorizontal(lipgloss.Top, border.Render(left), border.Render(right))
+	body := lipgloss.JoinHorizontal(lipgloss.Top, pane.Render(left), pane.Render(right))
 	footerText := "j/k move  g/G top/bot  Tab switch  Enter review  d diff  o open  r refresh  q quit"
 	if m.viewingDiff {
 		footerText = "j/k scroll  pgup/pgdn page  d/Esc back  q quit"
@@ -95,18 +116,24 @@ func (m Model) renderList() string {
 // listLines builds the full rendered PR list (including repo headers)
 // and returns the display-line index of the cursor.
 func (m Model) listLines() (lines []string, cursorLine int) {
+	paneW, _ := paneInnerSize(m.termW, m.termH)
+	// reserve chars for prefix "► " and "#NNN "
+	titleW := paneW - 10
+	if titleW < 10 {
+		titleW = 10
+	}
 	prs := m.prsByTab[m.tab]
 	groups := groupByRepo(prs)
 	idx := 0
 	for _, g := range groups {
-		lines = append(lines, repoHeader.Render(g.name))
+		lines = append(lines, repoHeader.Render(truncate(g.name, paneW-2)))
 		for _, pr := range g.prs {
 			prefix := "  "
 			if idx == m.cursor {
 				prefix = "► "
 				cursorLine = len(lines)
 			}
-			lines = append(lines, fmt.Sprintf("%s#%d %s", prefix, pr.Number, truncate(pr.Title, 50)))
+			lines = append(lines, fmt.Sprintf("%s#%d %s", prefix, pr.Number, truncate(pr.Title, titleW)))
 			idx++
 		}
 	}

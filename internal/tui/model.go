@@ -46,6 +46,9 @@ type Model struct {
 	listH      int // visible height of the PR list pane
 	listOffset int // index of first visible line in renderList
 
+	termW int // last reported terminal width
+	termH int // last reported terminal height
+
 	spinner spinner.Model
 	err     error
 }
