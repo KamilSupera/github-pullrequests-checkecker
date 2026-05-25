@@ -48,7 +48,7 @@ func (m Model) View() string {
 	left := m.renderList()
 	right := m.renderRight()
 	body := lipgloss.JoinHorizontal(lipgloss.Top, pane.Render(left), pane.Render(right))
-	footerText := "j/k move  g/G top/bot  Tab switch  Enter review  d diff  o open  r refresh  q quit"
+	footerText := "j/k move  Space detail  d diff  Enter review  Tab switch  g/G top/bot  o open  r refresh  q quit"
 	if m.viewingDiff {
 		footerText = "j/k scroll  pgup/pgdn page  d/Esc back  q quit"
 	}
@@ -194,7 +194,13 @@ func (m Model) renderDetail() string {
 	}
 	d := m.details[pr.URL]
 	if d == nil {
-		return fmt.Sprintf("%s\n%s", pr.Title, dim.Render("loading detail..."))
+		var b strings.Builder
+		fmt.Fprintf(&b, "#%d %s\n", pr.Number, pr.Title)
+		if pr.Repo != "" {
+			fmt.Fprintf(&b, "%s\n", dim.Render(pr.Repo))
+		}
+		fmt.Fprintf(&b, "\n%s\n", hint.Render("Press Space to load detail."))
+		return b.String()
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Title:   %s\n", d.Title)

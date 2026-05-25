@@ -45,12 +45,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.prsByTab[msg.tab] = msg.prs
 		}
 		m = m.scrollListIntoView()
-		// preload detail for the first PR of current tab
-		if pr, ok := m.currentPR(); ok {
-			if _, cached := m.details[pr.URL]; !cached {
-				return m, m.loadDetail(pr.URL)
-			}
-		}
 		return m, nil
 
 	case prDetailMsg:
@@ -113,11 +107,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.cursor++
 		}
 		m = m.scrollListIntoView()
-		if pr, ok := m.currentPR(); ok {
-			if _, cached := m.details[pr.URL]; !cached {
-				return m, m.loadDetail(pr.URL)
-			}
-		}
 		return m, nil
 
 	case "k", "up":
@@ -125,21 +114,11 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.cursor--
 		}
 		m = m.scrollListIntoView()
-		if pr, ok := m.currentPR(); ok {
-			if _, cached := m.details[pr.URL]; !cached {
-				return m, m.loadDetail(pr.URL)
-			}
-		}
 		return m, nil
 
 	case "g", "home":
 		m.cursor = 0
 		m.listOffset = 0
-		if pr, ok := m.currentPR(); ok {
-			if _, cached := m.details[pr.URL]; !cached {
-				return m, m.loadDetail(pr.URL)
-			}
-		}
 		return m, nil
 
 	case "G", "end":
@@ -148,12 +127,17 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.cursor = len(prs) - 1
 		}
 		m = m.scrollListIntoView()
-		if pr, ok := m.currentPR(); ok {
-			if _, cached := m.details[pr.URL]; !cached {
-				return m, m.loadDetail(pr.URL)
-			}
-		}
 		return m, nil
+
+	case " ", "space":
+		pr, ok := m.currentPR()
+		if !ok {
+			return m, nil
+		}
+		if _, cached := m.details[pr.URL]; cached {
+			return m, nil
+		}
+		return m, m.loadDetail(pr.URL)
 
 	case "d":
 		pr, ok := m.currentPR()
