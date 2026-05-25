@@ -88,7 +88,7 @@ func (m Model) renderList() string {
 		return errStyle.Render("load error: ") + err.Error()
 	}
 	if prs == nil {
-		return dim.Render("loading...")
+		return spinnerLine(m.spinner.View(), dim.Render("loading PRs..."))
 	}
 	if len(prs) == 0 {
 		return dim.Render("(no PRs)")
