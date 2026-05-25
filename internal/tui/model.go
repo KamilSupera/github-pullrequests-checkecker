@@ -43,6 +43,9 @@ type Model struct {
 	viewingDiff bool
 	diffVP      viewport.Model
 
+	listH      int // visible height of the PR list pane
+	listOffset int // index of first visible line in renderList
+
 	spinner spinner.Model
 	err     error
 }
@@ -65,6 +68,7 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, rp runPipelineFn, open o
 		details:  map[string]*github.PRDetail{},
 		diffs:    map[string]string{},
 		diffVP:   viewport.New(80, 20),
+		listH:    20,
 		spinner:  sp,
 	}
 }

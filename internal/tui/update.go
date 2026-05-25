@@ -24,6 +24,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.diffVP.Width = w
 		m.diffVP.Height = h
+		m.listH = h
+		m = m.scrollListIntoView()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -48,6 +50,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 			m.prsByTab[msg.tab] = msg.prs
 		}
+		m = m.scrollListIntoView()
 		// preload detail for the first PR of current tab
 		if pr, ok := m.currentPR(); ok {
 			if _, cached := m.details[pr.URL]; !cached {
@@ -115,6 +118,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.cursor < len(prs)-1 {
 			m.cursor++
 		}
+		m = m.scrollListIntoView()
 		if pr, ok := m.currentPR(); ok {
 			if _, cached := m.details[pr.URL]; !cached {
 				return m, m.loadDetail(pr.URL)
@@ -126,6 +130,30 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.cursor > 0 {
 			m.cursor--
 		}
+		m = m.scrollListIntoView()
+		if pr, ok := m.currentPR(); ok {
+			if _, cached := m.details[pr.URL]; !cached {
+				return m, m.loadDetail(pr.URL)
+			}
+		}
+		return m, nil
+
+	case "g", "home":
+		m.cursor = 0
+		m.listOffset = 0
+		if pr, ok := m.currentPR(); ok {
+			if _, cached := m.details[pr.URL]; !cached {
+				return m, m.loadDetail(pr.URL)
+			}
+		}
+		return m, nil
+
+	case "G", "end":
+		prs := m.prsByTab[m.tab]
+		if len(prs) > 0 {
+			m.cursor = len(prs) - 1
+		}
+		m = m.scrollListIntoView()
 		if pr, ok := m.currentPR(); ok {
 			if _, cached := m.details[pr.URL]; !cached {
 				return m, m.loadDetail(pr.URL)
@@ -150,16 +178,20 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "tab":
 		m.tab = (m.tab + 1) % 3
 		m.cursor = 0
+		m.listOffset = 0
 		return m, nil
 
 	case "shift+tab":
 		m.tab = (m.tab + 2) % 3
 		m.cursor = 0
+		m.listOffset = 0
 		return m, nil
 
 	case "r":
 		// refresh current tab
 		m.prsByTab[m.tab] = nil
+		m.cursor = 0
+		m.listOffset = 0
 		return m, m.loadTab(m.tab)
 
 	case "o":
@@ -187,6 +219,29 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// scrollListIntoView adjusts m.listOffset so the cursor's display line
+// is within the visible window of m.listH lines.
+func (m Model) scrollListIntoView() Model {
+	if m.listH <= 0 {
+		return m
+	}
+	lines, cursorLine := m.listLines()
+	if len(lines) == 0 {
+		m.listOffset = 0
+		return m
+	}
+	if cursorLine < m.listOffset {
+		m.listOffset = cursorLine
+	}
+	if cursorLine >= m.listOffset+m.listH {
+		m.listOffset = cursorLine - m.listH + 1
+	}
+	if m.listOffset < 0 {
+		m.listOffset = 0
+	}
+	return m
 }
 
 func (m Model) loadDetail(url string) tea.Cmd {

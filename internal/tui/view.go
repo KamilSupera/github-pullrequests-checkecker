@@ -27,7 +27,7 @@ func (m Model) View() string {
 	left := m.renderList()
 	right := m.renderRight()
 	body := lipgloss.JoinHorizontal(lipgloss.Top, border.Render(left), border.Render(right))
-	footerText := "j/k move  Tab switch  Enter review  d diff  o open  r refresh  q quit"
+	footerText := "j/k move  g/G top/bot  Tab switch  Enter review  d diff  o open  r refresh  q quit"
 	if m.viewingDiff {
 		footerText = "j/k scroll  pgup/pgdn page  d/Esc back  q quit"
 	}
@@ -60,21 +60,57 @@ func (m Model) renderList() string {
 		return dim.Render("(no PRs)")
 	}
 
+	lines, _ := m.listLines()
+	start := m.listOffset
+	if start < 0 {
+		start = 0
+	}
+	if start > len(lines) {
+		start = len(lines)
+	}
+	end := start + m.listH
+	if end > len(lines) {
+		end = len(lines)
+	}
+	visible := lines[start:end]
+
+	// Show simple scrollbar hint when content overflows.
+	if len(lines) > m.listH {
+		extra := ""
+		if start > 0 {
+			extra += "↑"
+		} else {
+			extra += " "
+		}
+		if end < len(lines) {
+			extra += "↓"
+		} else {
+			extra += " "
+		}
+		visible = append(visible, dim.Render(fmt.Sprintf("  %s %d/%d", extra, end, len(lines))))
+	}
+	return strings.Join(visible, "\n")
+}
+
+// listLines builds the full rendered PR list (including repo headers)
+// and returns the display-line index of the cursor.
+func (m Model) listLines() (lines []string, cursorLine int) {
+	prs := m.prsByTab[m.tab]
 	groups := groupByRepo(prs)
-	var lines []string
-	idx := 0 // running index into `prs`, matches m.cursor semantics
+	idx := 0
 	for _, g := range groups {
 		lines = append(lines, repoHeader.Render(g.name))
 		for _, pr := range g.prs {
 			prefix := "  "
 			if idx == m.cursor {
 				prefix = "► "
+				cursorLine = len(lines)
 			}
 			lines = append(lines, fmt.Sprintf("%s#%d %s", prefix, pr.Number, truncate(pr.Title, 50)))
 			idx++
 		}
 	}
-	return strings.Join(lines, "\n")
+	return
 }
 
 type repoGroup struct {
