@@ -19,6 +19,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.diffVP.Width = paneW
 		m.diffVP.Height = paneH
 		m.listH = paneH
+		// detail box uses 8 inner rows by default; the rest goes to comments.
+		ch := paneH - 2 - 8
+		if ch < 3 {
+			ch = 3
+		}
+		m.commentsH = ch
 		m = m.scrollListIntoView()
 		return m, nil
 
@@ -51,6 +57,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case prDetailMsg:
 		if msg.err == nil {
 			m.details[msg.url] = msg.detail
+			m.commentsOffset = 0
 		}
 		return m, nil
 
@@ -106,6 +113,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		prs := m.prsByTab[m.tab]
 		if m.cursor < len(prs)-1 {
 			m.cursor++
+			m.commentsOffset = 0
 		}
 		m = m.scrollListIntoView()
 		return m, nil
@@ -113,8 +121,23 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "k", "up":
 		if m.cursor > 0 {
 			m.cursor--
+			m.commentsOffset = 0
 		}
 		m = m.scrollListIntoView()
+		return m, nil
+
+	case "J", "pgdown":
+		m.commentsOffset += m.commentsH - 1
+		if m.commentsOffset < 0 {
+			m.commentsOffset = 0
+		}
+		return m, nil
+
+	case "K", "pgup":
+		m.commentsOffset -= m.commentsH - 1
+		if m.commentsOffset < 0 {
+			m.commentsOffset = 0
+		}
 		return m, nil
 
 	case "g", "home":
@@ -158,12 +181,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.tab = (m.tab + 1) % 3
 		m.cursor = 0
 		m.listOffset = 0
+		m.commentsOffset = 0
 		return m, nil
 
 	case "shift+tab":
 		m.tab = (m.tab + 2) % 3
 		m.cursor = 0
 		m.listOffset = 0
+		m.commentsOffset = 0
 		return m, nil
 
 	case "r":
@@ -171,6 +196,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.prsByTab[m.tab] = nil
 		m.cursor = 0
 		m.listOffset = 0
+		m.commentsOffset = 0
 		return m, m.loadTab(m.tab)
 
 	case "o":

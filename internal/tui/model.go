@@ -46,6 +46,9 @@ type Model struct {
 	listH      int // visible height of the PR list pane
 	listOffset int // index of first visible line in renderList
 
+	commentsOffset int // first visible line in the comments box
+	commentsH      int // visible height of the comments box
+
 	termW int // last reported terminal width
 	termH int // last reported terminal height
 

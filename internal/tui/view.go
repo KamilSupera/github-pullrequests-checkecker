@@ -54,7 +54,7 @@ func (m Model) View() string {
 	left := m.renderList()
 	right := m.renderRightSplit(paneW, paneH)
 	body := lipgloss.JoinHorizontal(lipgloss.Top, leftPane.Render(left), right)
-	footerText := "j/k move  Space detail  d diff  Enter review  Tab switch  g/G top/bot  o open  r refresh  q quit"
+	footerText := "j/k move  J/K scroll comments  Space detail  d diff  Enter review  Tab switch  o open  r refresh  q quit"
 	if m.viewingDiff {
 		footerText = "j/k scroll  pgup/pgdn page  d/Esc back  q quit"
 	}
@@ -198,7 +198,6 @@ func groupByRepo(prs []github.PR) []repoGroup {
 // boxes: detail on top, comments below. Total height equals paneH+2
 // so it matches the left pane's outer height.
 func (m Model) renderRightSplit(paneW, paneH int) string {
-	// Diff / progress / review-result keep the original full-height pane.
 	if m.viewingDiff || m.running || m.lastReview != nil {
 		fullPane := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -207,13 +206,9 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 		return fullPane.Render(m.renderRight())
 	}
 
-	// Allocate: detail gets 8 inner rows, comments gets the rest.
-	// Each bordered box adds 2 rows; both boxes together: (d+2)+(c+2)
-	// must equal paneH+2, so d+c = paneH-2.
 	detailH := 8
 	commentsH := paneH - 2 - detailH
 	if commentsH < 3 {
-		// not enough room — give comments at least 3 rows by shrinking detail
 		detailH = paneH - 2 - 3
 		if detailH < 3 {
 			detailH = 3
@@ -234,9 +229,52 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 		Border(lipgloss.RoundedBorder()).
 		Width(paneW).
 		Height(commentsH).
-		Render(m.renderComments())
+		Render(m.renderCommentsWindow(commentsH))
 
 	return lipgloss.JoinVertical(lipgloss.Left, detailBox, commentsBox)
+}
+
+// renderCommentsWindow returns the comments content sliced to the
+// available height, with a scroll indicator on the last row when the
+// content overflows.
+func (m Model) renderCommentsWindow(h int) string {
+	full := m.renderComments()
+	if full == "" {
+		return ""
+	}
+	lines := strings.Split(full, "\n")
+	overflow := len(lines) > h
+	maxRows := h
+	if overflow {
+		maxRows--
+		if maxRows < 1 {
+			maxRows = 1
+		}
+	}
+	start := m.commentsOffset
+	if start > len(lines) {
+		start = len(lines)
+	}
+	if start < 0 {
+		start = 0
+	}
+	end := start + maxRows
+	if end > len(lines) {
+		end = len(lines)
+	}
+	visible := lines[start:end]
+	if overflow {
+		up := " "
+		if start > 0 {
+			up = "↑"
+		}
+		down := " "
+		if end < len(lines) {
+			down = "↓"
+		}
+		visible = append(visible, dim.Render(fmt.Sprintf("  %s%s %d/%d  J/K scroll", up, down, end, len(lines))))
+	}
+	return strings.Join(visible, "\n")
 }
 
 func (m Model) renderRight() string {
