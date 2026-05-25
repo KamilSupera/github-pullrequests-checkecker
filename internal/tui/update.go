@@ -201,7 +201,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // scrollListIntoView adjusts m.listOffset so the cursor's display line
-// is within the visible window of m.listH lines.
+// is within the visible window. Visible window is listH normally, or
+// listH-1 when content overflows (the last row hosts the scroll
+// indicator and must stay reserved).
 func (m Model) scrollListIntoView() Model {
 	if m.listH <= 0 {
 		return m
@@ -211,11 +213,18 @@ func (m Model) scrollListIntoView() Model {
 		m.listOffset = 0
 		return m
 	}
+	visible := m.listH
+	if len(lines) > m.listH {
+		visible = m.listH - 1
+		if visible < 1 {
+			visible = 1
+		}
+	}
 	if cursorLine < m.listOffset {
 		m.listOffset = cursorLine
 	}
-	if cursorLine >= m.listOffset+m.listH {
-		m.listOffset = cursorLine - m.listH + 1
+	if cursorLine >= m.listOffset+visible {
+		m.listOffset = cursorLine - visible + 1
 	}
 	if m.listOffset < 0 {
 		m.listOffset = 0

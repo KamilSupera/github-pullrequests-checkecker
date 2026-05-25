@@ -95,6 +95,17 @@ func (m Model) renderList() string {
 	}
 
 	lines, _ := m.listLines()
+	overflow := len(lines) > m.listH
+	maxRows := m.listH
+	if overflow {
+		// Reserve last row for the scroll indicator so the pane height
+		// stays equal to listH (otherwise the bordered pane expands by
+		// one row and pushes the tabs off the top of the screen).
+		maxRows--
+		if maxRows < 1 {
+			maxRows = 1
+		}
+	}
 	start := m.listOffset
 	if start < 0 {
 		start = 0
@@ -102,26 +113,22 @@ func (m Model) renderList() string {
 	if start > len(lines) {
 		start = len(lines)
 	}
-	end := start + m.listH
+	end := start + maxRows
 	if end > len(lines) {
 		end = len(lines)
 	}
 	visible := lines[start:end]
 
-	// Show simple scrollbar hint when content overflows.
-	if len(lines) > m.listH {
-		extra := ""
+	if overflow {
+		up := " "
 		if start > 0 {
-			extra += "↑"
-		} else {
-			extra += " "
+			up = "↑"
 		}
+		down := " "
 		if end < len(lines) {
-			extra += "↓"
-		} else {
-			extra += " "
+			down = "↓"
 		}
-		visible = append(visible, dim.Render(fmt.Sprintf("  %s %d/%d", extra, end, len(lines))))
+		visible = append(visible, dim.Render(fmt.Sprintf("  %s%s %d/%d", up, down, end, len(lines))))
 	}
 	return strings.Join(visible, "\n")
 }
