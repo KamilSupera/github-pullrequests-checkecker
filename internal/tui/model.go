@@ -12,6 +12,13 @@ import (
 	"github.com/ksupera/prcheck/internal/pipeline"
 )
 
+type stepRec struct {
+	step   string
+	status string
+	note   string
+	err    error
+}
+
 type loaderFn func(ctx context.Context, q github.Query) ([]github.PR, error)
 type detailFn func(ctx context.Context, url string) (*github.PRDetail, error)
 type diffFn func(ctx context.Context, url string) (string, error)
@@ -41,7 +48,7 @@ type Model struct {
 	loadingDiff   map[string]bool
 
 	running    bool
-	steps      []string // history of progress events
+	steps      []stepRec // history of progress events
 	lastReview *reviewDoneMsg
 
 	viewingDiff bool

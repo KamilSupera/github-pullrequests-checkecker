@@ -600,12 +600,42 @@ func cleanCommentBody(s string) string {
 
 func (m Model) renderProgress() string {
 	var b strings.Builder
-	b.WriteString("Running review pipeline " + m.spinner.View() + "\n\n")
+	title := lipgloss.NewStyle().Foreground(colMauve).Bold(true).Render("Running review pipeline")
+	b.WriteString(title + " " + m.spinner.View() + "\n\n")
 	for _, s := range m.steps {
-		b.WriteString("  ✓ " + s + "\n")
+		b.WriteString(renderStepRow(m.spinner.View(), s) + "\n")
 	}
-	b.WriteString("\n" + hint.Render("Press q to cancel."))
+	b.WriteString("\n" + keyCap.Render("q") + " " + hint.Render("cancel pipeline"))
 	return b.String()
+}
+
+func renderStepRow(spin string, s stepRec) string {
+	var icon string
+	switch s.status {
+	case "start":
+		icon = lipgloss.NewStyle().Foreground(colMauve).Render(spin)
+	case "done":
+		icon = pass.Render("✓")
+	case "skip":
+		icon = dim.Render("∅")
+	case "warn":
+		icon = pending.Render("⚠")
+	case "error":
+		icon = fail.Render("✗")
+	default:
+		icon = dim.Render("·")
+	}
+	stepName := lipgloss.NewStyle().Foreground(colMauve).Bold(true).Width(8).Render(s.step)
+	note := s.note
+	if s.err != nil {
+		note = fmt.Sprintf("%s (%v)", note, s.err)
+	}
+	if note == "" {
+		note = dim.Render("…")
+	} else {
+		note = lipgloss.NewStyle().Foreground(colFG).Render(note)
+	}
+	return fmt.Sprintf("%s %s %s", icon, stepName, note)
 }
 
 func (m Model) renderReviewResult() string {

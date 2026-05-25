@@ -65,7 +65,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case progressMsg:
-		m.steps = append(m.steps, msg.step)
+		rec := stepRec{step: msg.step, status: msg.status, note: msg.note, err: msg.err}
+		// If we just got a "done|warn|skip|error" event for a step that
+		// already has a "start" record, replace that record in-place so
+		// we show one row per step.
+		replaced := false
+		for i := len(m.steps) - 1; i >= 0; i-- {
+			if m.steps[i].step == rec.step && m.steps[i].status == "start" && (rec.status == "done" || rec.status == "warn" || rec.status == "error" || rec.status == "skip") {
+				m.steps[i] = rec
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			m.steps = append(m.steps, rec)
+		}
 		return m, nil
 
 	case reviewDoneMsg:

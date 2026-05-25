@@ -22,9 +22,10 @@ type prDetailMsg struct {
 }
 
 type progressMsg struct {
-	step string
-	note string
-	err  error
+	step   string
+	status string
+	note   string
+	err    error
 }
 
 type reviewDoneMsg struct {
@@ -62,5 +63,5 @@ func (t Tab) Label() string {
 // ProgressFromEvent constructs the public progress message used by
 // the main package to stream live pipeline events.
 func ProgressFromEvent(e pipeline.Event) tea.Msg {
-	return progressMsg{step: e.Step, note: e.Note, err: e.Err}
+	return progressMsg{step: e.Step, status: e.Status, note: e.Note, err: e.Err}
 }

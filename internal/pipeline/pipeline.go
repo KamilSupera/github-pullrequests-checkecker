@@ -43,13 +43,15 @@ type Deps struct {
 }
 
 type Event struct {
-	Step string // "diff", "detail", "jira", "claude", "post"
-	Note string // optional human-readable detail
-	Err  error  // non-nil if step failed (but non-fatal)
+	Step   string // "diff", "detail", "jira", "claude", "post"
+	Status string // "start", "done", "skip", "warn", "error"
+	Note   string // human-readable result detail
+	Err    error  // set when Status=="warn" or "error"
 }
 
 func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (int64, error) {
-	emit(Event{Step: "diff"})
+	// diff
+	emit(Event{Step: "diff", Status: "start", Note: "fetching unified diff"})
 	diff, err := d.GH.FetchDiff(ctx, prURL)
 	if err != nil {
 		return 0, err
@@ -58,28 +60,42 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (int64, er
 		return 0, ErrEmptyDiff
 	}
 	cappedDiff, truncated := CapDiff(diff, DefaultDiffCap)
+	files, addLines, delLines := summarizeDiff(diff)
+	diffNote := fmt.Sprintf("%d files, +%d / -%d lines", files, addLines, delLines)
+	if truncated {
+		diffNote += fmt.Sprintf(" (truncated at %d chars)", DefaultDiffCap)
+	}
+	emit(Event{Step: "diff", Status: "done", Note: diffNote})
 
-	emit(Event{Step: "detail"})
+	// detail + checks
+	emit(Event{Step: "detail", Status: "start", Note: "fetching PR metadata and CI checks"})
 	detail, err := d.GH.FetchPRDetail(ctx, prURL)
 	if err != nil {
 		return 0, err
 	}
 	checks := github.SummarizeChecks(detail.Checks)
+	detailNote := fmt.Sprintf("%q by @%s — %d passed, %d failed, %d pending",
+		truncateStr(detail.Title, 40), detail.Author, checks.Passed, checks.Failed, checks.Pending)
+	emit(Event{Step: "detail", Status: "done", Note: detailNote})
 
-	emit(Event{Step: "jira"})
+	// jira
 	jiraKey := jira.ExtractKey(detail.Body, detail.HeadRefName)
 	var iss *JiraIssue
-	if jiraKey != "" {
+	if jiraKey == "" {
+		emit(Event{Step: "jira", Status: "skip", Note: "no Jira key in PR body or branch name"})
+	} else {
+		emit(Event{Step: "jira", Status: "start", Note: "fetching " + jiraKey + " via Atlassian MCP"})
 		issue, ferr := d.Jira.FetchIssue(ctx, jiraKey)
 		if ferr != nil {
-			emit(Event{Step: "jira", Err: ferr, Note: "continuing without Jira"})
+			emit(Event{Step: "jira", Status: "warn", Err: ferr, Note: "fetch failed; continuing without Jira context"})
 			iss = nil
 		} else {
 			iss = issue
+			emit(Event{Step: "jira", Status: "done", Note: fmt.Sprintf("%s: %s", iss.Key, truncateStr(iss.Summary, 60))})
 		}
 	}
 
-	emit(Event{Step: "claude"})
+	// claude
 	in := claude.PromptInput{
 		Title:         detail.Title,
 		HeadRef:       detail.HeadRefName,
@@ -96,12 +112,16 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (int64, er
 		in.JiraDesc = iss.Description
 	}
 	prompt := claude.BuildPrompt(in)
+	emit(Event{Step: "claude", Status: "start", Note: fmt.Sprintf("invoking claude (%d-char prompt) with caveman:caveman-review", len(prompt))})
+	start := time.Now()
 	review, err := d.Claude.Invoke(ctx, prompt)
 	if err != nil {
 		return 0, err
 	}
+	emit(Event{Step: "claude", Status: "done", Note: fmt.Sprintf("got review in %s: %d comments", time.Since(start).Truncate(time.Second), len(review.Comments))})
 
-	emit(Event{Step: "post"})
+	// post
+	emit(Event{Step: "post", Status: "start", Note: fmt.Sprintf("POSTing %d inline comments as PENDING review", len(review.Comments))})
 	ghComments := make([]github.ReviewComment, len(review.Comments))
 	for i, c := range review.Comments {
 		ghComments[i] = github.ReviewComment{
@@ -117,7 +137,33 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (int64, er
 		dumpFailedReview(prURL, review.Summary, ghComments)
 		return 0, err
 	}
+	emit(Event{Step: "post", Status: "done", Note: fmt.Sprintf("review #%d posted as PENDING", id)})
 	return id, nil
+}
+
+// summarizeDiff counts the number of files touched and added/removed
+// content lines (excluding diff headers and hunk markers).
+func summarizeDiff(diff string) (files, adds, dels int) {
+	for _, line := range strings.Split(diff, "\n") {
+		switch {
+		case strings.HasPrefix(line, "diff --git"):
+			files++
+		case strings.HasPrefix(line, "+++"), strings.HasPrefix(line, "---"), strings.HasPrefix(line, "@@"):
+			// skip
+		case strings.HasPrefix(line, "+"):
+			adds++
+		case strings.HasPrefix(line, "-"):
+			dels++
+		}
+	}
+	return
+}
+
+func truncateStr(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n-1] + "…"
 }
 
 // dumpFailedReview persists the review payload to /tmp so a failed POST

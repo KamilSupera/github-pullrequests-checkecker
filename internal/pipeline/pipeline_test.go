@@ -66,9 +66,11 @@ func TestRun_HappyPath(t *testing.T) {
 		Post:   poster,
 	}
 
-	var events []string
+	var doneSteps []string
 	id, err := Run(t.Context(), deps, "https://github.com/o/r/pull/1", func(e Event) {
-		events = append(events, e.Step)
+		if e.Status == "done" {
+			doneSteps = append(doneSteps, e.Step)
+		}
 	})
 	if err != nil {
 		t.Fatalf("Run err: %v", err)
@@ -82,13 +84,13 @@ func TestRun_HappyPath(t *testing.T) {
 	if len(poster.lastComments) != 1 {
 		t.Errorf("comments = %v", poster.lastComments)
 	}
-	wantSteps := []string{"diff", "detail", "jira", "claude", "post"}
-	if len(events) != len(wantSteps) {
-		t.Fatalf("events = %v", events)
+	want := []string{"diff", "detail", "jira", "claude", "post"}
+	if len(doneSteps) != len(want) {
+		t.Fatalf("done events = %v", doneSteps)
 	}
-	for i, w := range wantSteps {
-		if events[i] != w {
-			t.Errorf("events[%d] = %q, want %q", i, events[i], w)
+	for i, w := range want {
+		if doneSteps[i] != w {
+			t.Errorf("doneSteps[%d] = %q, want %q", i, doneSteps[i], w)
 		}
 	}
 }
