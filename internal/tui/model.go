@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/ksupera/prcheck/internal/github"
 	"github.com/ksupera/prcheck/internal/pipeline"
@@ -61,7 +62,8 @@ type Model struct {
 
 func NewModel(loader loaderFn, df detailFn, dfn diffFn, rp runPipelineFn, open openFn) Model {
 	sp := spinner.New()
-	sp.Spinner = spinner.Dot
+	sp.Spinner = spinner.MiniDot
+	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7"))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return Model{

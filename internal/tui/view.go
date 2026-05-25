@@ -10,21 +10,65 @@ import (
 	"github.com/ksupera/prcheck/internal/github"
 )
 
+// Theme — Catppuccin Mocha-inspired palette. Hex colors degrade
+// gracefully to 256-color when truecolor is unsupported.
 var (
+	colFG       = lipgloss.Color("#cdd6f4")
+	colSubtext  = lipgloss.Color("#a6adc8")
+	colOverlay  = lipgloss.Color("#6c7086")
+	colMauve    = lipgloss.Color("#cba6f7")
+	colBlue     = lipgloss.Color("#89b4fa")
+	colTeal     = lipgloss.Color("#94e2d5")
+	colGreen    = lipgloss.Color("#a6e3a1")
+	colYellow   = lipgloss.Color("#f9e2af")
+	colPeach    = lipgloss.Color("#fab387")
+	colRed      = lipgloss.Color("#f38ba8")
+	colPink     = lipgloss.Color("#f5c2e7")
+	colSurface0 = lipgloss.Color("#313244")
+
 	tabActive = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("231")).      // bright white
-			Background(lipgloss.Color("33")).       // blue bar
+			Foreground(colFG).
+			Background(colMauve).
 			Padding(0, 1)
 	tabInactive = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("250")).      // light grey, always visible
+			Foreground(colSubtext).
 			Padding(0, 1)
-	errStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
-	dim         = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	pass        = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
-	fail        = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	hint        = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-	repoHeader  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("75"))
+	errStyle    = lipgloss.NewStyle().Foreground(colRed).Bold(true)
+	dim         = lipgloss.NewStyle().Foreground(colOverlay)
+	pass        = lipgloss.NewStyle().Foreground(colGreen).Bold(true)
+	fail        = lipgloss.NewStyle().Foreground(colRed).Bold(true)
+	pending     = lipgloss.NewStyle().Foreground(colYellow)
+	hint        = lipgloss.NewStyle().Foreground(colSubtext)
+	repoHeader  = lipgloss.NewStyle().Bold(true).Foreground(colMauve)
+	prNumStyle  = lipgloss.NewStyle().Foreground(colBlue).Bold(true)
+	prTitle     = lipgloss.NewStyle().Foreground(colFG)
+	authorTag   = lipgloss.NewStyle().Foreground(colPeach)
+	keyCap      = lipgloss.NewStyle().
+			Foreground(colFG).
+			Background(colSurface0).
+			Bold(true).
+			Padding(0, 1)
+	keyHelp = lipgloss.NewStyle().Foreground(colSubtext)
+
+	borderColor       = colOverlay
+	borderActiveColor = colMauve
+
+	// Status badges (filled pills).
+	badgeApproved = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#1e1e2e")).
+			Background(colGreen).
+			Padding(0, 1)
+	badgeChanges = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#1e1e2e")).
+			Background(colRed).
+			Padding(0, 1)
+	badgeCommented = lipgloss.NewStyle().
+			Foreground(colFG).
+			Background(colOverlay).
+			Padding(0, 1)
 )
 
 // paneInnerSize returns the (width, height) of the CONTENT area inside
@@ -47,6 +91,7 @@ func (m Model) View() string {
 	paneW, paneH := paneInnerSize(m.termW, m.termH)
 	leftPane := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
+		BorderForeground(borderActiveColor).
 		Width(paneW).
 		Height(paneH)
 
@@ -54,25 +99,58 @@ func (m Model) View() string {
 	left := m.renderList()
 	right := m.renderRightSplit(paneW, paneH)
 	body := lipgloss.JoinHorizontal(lipgloss.Top, leftPane.Render(left), right)
-	footerText := "j/k move  J/K scroll comments  Space detail  d diff  Enter review  Tab switch  o open  r refresh  q quit"
-	if m.viewingDiff {
-		footerText = "j/k scroll  pgup/pgdn page  d/Esc back  q quit"
-	}
-	footer := hint.Render(footerText)
+
+	footer := m.renderFooter()
 	return strings.Join([]string{header, body, footer}, "\n")
+}
+
+// renderFooter shows keycap-style help, switching to a diff-specific
+// set of keys when the diff viewer is up.
+func (m Model) renderFooter() string {
+	type kh struct{ key, help string }
+	var items []kh
+	if m.viewingDiff {
+		items = []kh{
+			{"j/k", "scroll"},
+			{"PgUp/PgDn", "page"},
+			{"d/Esc", "back"},
+			{"q", "quit"},
+		}
+	} else {
+		items = []kh{
+			{"j/k", "move"},
+			{"J/K", "comments"},
+			{"Space", "detail"},
+			{"d", "diff"},
+			{"⏎", "review"},
+			{"Tab", "tab"},
+			{"o", "open"},
+			{"r", "refresh"},
+			{"q", "quit"},
+		}
+	}
+	var parts []string
+	for _, it := range items {
+		parts = append(parts, keyCap.Render(it.key)+" "+keyHelp.Render(it.help))
+	}
+	return strings.Join(parts, "  ")
 }
 
 func (m Model) renderTabs() string {
 	var parts []string
+	countStyle := lipgloss.NewStyle().Foreground(colYellow).Bold(true)
 	for i := Tab(0); i < 3; i++ {
-		label := i.Label()
+		name := i.Label()
+		var count string
 		if prs, loaded := m.prsByTab[i]; loaded {
-			label = fmt.Sprintf("%s (%d)", label, len(prs))
+			count = countStyle.Render(fmt.Sprintf("%d", len(prs)))
 		} else if err := m.loadErr[i]; err != nil {
-			label = fmt.Sprintf("%s (!)", label)
+			_ = err
+			count = errStyle.Render("!")
 		} else {
-			label = fmt.Sprintf("%s (…)", label)
+			count = dim.Render("…")
 		}
+		label := fmt.Sprintf("%s %s", name, count)
 		if i == m.tab {
 			parts = append(parts, tabActive.Render(label))
 		} else {
@@ -137,7 +215,6 @@ func (m Model) renderList() string {
 // and returns the display-line index of the cursor.
 func (m Model) listLines() (lines []string, cursorLine int) {
 	paneW, _ := paneInnerSize(m.termW, m.termH)
-	// reserve chars for prefix "► " and "#NNN "
 	titleW := paneW - 10
 	if titleW < 10 {
 		titleW = 10
@@ -145,15 +222,23 @@ func (m Model) listLines() (lines []string, cursorLine int) {
 	prs := m.prsByTab[m.tab]
 	groups := groupByRepo(prs)
 	idx := 0
+	cursorStyle := lipgloss.NewStyle().Foreground(colMauve).Bold(true)
 	for _, g := range groups {
-		lines = append(lines, repoHeader.Render(truncate(g.name, paneW-2)))
+		lines = append(lines, repoHeader.Render("● "+truncate(g.name, paneW-4)))
 		for _, pr := range g.prs {
-			prefix := "  "
-			if idx == m.cursor {
-				prefix = "► "
+			active := idx == m.cursor
+			var prefix, num, title string
+			if active {
+				prefix = cursorStyle.Render("❯ ")
+				num = prNumStyle.Render(fmt.Sprintf("#%d", pr.Number))
+				title = prTitle.Bold(true).Render(truncate(pr.Title, titleW))
 				cursorLine = len(lines)
+			} else {
+				prefix = "  "
+				num = dim.Render(fmt.Sprintf("#%d", pr.Number))
+				title = dim.Render(truncate(pr.Title, titleW))
 			}
-			lines = append(lines, fmt.Sprintf("%s#%d %s", prefix, pr.Number, truncate(pr.Title, titleW)))
+			lines = append(lines, fmt.Sprintf("%s%s %s", prefix, num, title))
 			idx++
 		}
 	}
@@ -201,6 +286,7 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 	if m.viewingDiff || m.running || m.lastReview != nil {
 		fullPane := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
+			BorderForeground(borderActiveColor).
 			Width(paneW).
 			Height(paneH)
 		return fullPane.Render(m.renderRight())
@@ -221,12 +307,14 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 
 	detailBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
+		BorderForeground(borderColor).
 		Width(paneW).
 		Height(detailH).
 		Render(m.renderDetail())
 
 	commentsBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
+		BorderForeground(borderColor).
 		Width(paneW).
 		Height(commentsH).
 		Render(m.renderCommentsWindow(commentsH))
@@ -314,10 +402,16 @@ func (m Model) renderDetail() string {
 		}
 		return b.String()
 	}
+	label := lipgloss.NewStyle().Foreground(colMauve).Bold(true).Width(8)
 	var b strings.Builder
-	fmt.Fprintf(&b, "Title:   %s\n", d.Title)
-	fmt.Fprintf(&b, "Branch:  %s -> %s\n", d.HeadRefName, d.BaseRefName)
-	fmt.Fprintf(&b, "Author:  %s\n", d.Author)
+	fmt.Fprintf(&b, "%s%s\n", label.Render("title"), prTitle.Render(d.Title))
+	fmt.Fprintf(&b, "%s%s %s %s\n",
+		label.Render("branch"),
+		lipgloss.NewStyle().Foreground(colTeal).Render(d.HeadRefName),
+		dim.Render("→"),
+		lipgloss.NewStyle().Foreground(colTeal).Render(d.BaseRefName),
+	)
+	fmt.Fprintf(&b, "%s%s\n", label.Render("author"), authorTag.Render("@"+d.Author))
 	var p, f, q int
 	for _, c := range d.Checks {
 		switch {
@@ -330,12 +424,12 @@ func (m Model) renderDetail() string {
 		}
 	}
 	checks := fmt.Sprintf("%s %s %s",
-		pass.Render(fmt.Sprintf("%d passed", p)),
-		fail.Render(fmt.Sprintf("%d failed", f)),
-		dim.Render(fmt.Sprintf("%d pending", q)),
+		pass.Render(fmt.Sprintf("✓ %d", p)),
+		fail.Render(fmt.Sprintf("✗ %d", f)),
+		pending.Render(fmt.Sprintf("◷ %d", q)),
 	)
-	fmt.Fprintf(&b, "Checks:  %s\n", checks)
-	fmt.Fprintf(&b, "\n%s", hint.Render("Press Enter to run review."))
+	fmt.Fprintf(&b, "%s%s\n", label.Render("checks"), checks)
+	fmt.Fprintf(&b, "\n%s %s", keyCap.Render("⏎"), hint.Render("run review"))
 	return b.String()
 }
 
@@ -359,20 +453,20 @@ func (m Model) renderComments() string {
 	var b strings.Builder
 
 	if len(d.Reviews) > 0 {
-		fmt.Fprintf(&b, "%s\n", repoHeader.Render("Reviews"))
+		fmt.Fprintf(&b, "%s\n", repoHeader.Render("◆ Reviews"))
 		for _, r := range d.Reviews {
-			state := r.State
-			switch state {
+			var state string
+			switch r.State {
 			case "APPROVED":
-				state = pass.Render("✓ APPROVED")
+				state = badgeApproved.Render("APPROVED")
 			case "CHANGES_REQUESTED":
-				state = fail.Render("✗ CHANGES_REQUESTED")
+				state = badgeChanges.Render("CHANGES")
 			case "COMMENTED":
-				state = dim.Render("• COMMENTED")
+				state = badgeCommented.Render("COMMENT")
 			default:
-				state = dim.Render(state)
+				state = badgeCommented.Render(r.State)
 			}
-			fmt.Fprintf(&b, "%s @%s %s\n", state, r.Author(), dim.Render(shortTime(r.SubmittedAt)))
+			fmt.Fprintf(&b, "%s %s %s\n", state, authorTag.Render("@"+r.Author()), dim.Render(shortTime(r.SubmittedAt)))
 			if strings.TrimSpace(r.Body) != "" {
 				for _, line := range wrap(r.Body, bodyW) {
 					fmt.Fprintf(&b, "  %s\n", line)
@@ -385,9 +479,9 @@ func (m Model) renderComments() string {
 		if b.Len() > 0 {
 			b.WriteByte('\n')
 		}
-		fmt.Fprintf(&b, "%s\n", repoHeader.Render(fmt.Sprintf("Comments (%d)", len(d.Comments))))
+		fmt.Fprintf(&b, "%s\n", repoHeader.Render(fmt.Sprintf("◆ Comments (%d)", len(d.Comments))))
 		for _, c := range d.Comments {
-			fmt.Fprintf(&b, "@%s %s\n", c.Author(), dim.Render(shortTime(c.CreatedAt)))
+			fmt.Fprintf(&b, "%s %s\n", authorTag.Render("@"+c.Author()), dim.Render(shortTime(c.CreatedAt)))
 			for _, line := range wrap(c.Body, bodyW) {
 				fmt.Fprintf(&b, "  %s\n", line)
 			}
@@ -398,9 +492,9 @@ func (m Model) renderComments() string {
 		if b.Len() > 0 {
 			b.WriteByte('\n')
 		}
-		fmt.Fprintf(&b, "%s\n", repoHeader.Render(fmt.Sprintf("Inline (%d)", len(d.Inline))))
+		fmt.Fprintf(&b, "%s\n", repoHeader.Render(fmt.Sprintf("◆ Inline (%d)", len(d.Inline))))
 		for _, ic := range d.Inline {
-			fmt.Fprintf(&b, "%s @%s\n", dim.Render(fmt.Sprintf("%s:%d", ic.Path, ic.Line)), ic.User.Login)
+			fmt.Fprintf(&b, "%s %s\n", lipgloss.NewStyle().Foreground(colPink).Render(fmt.Sprintf("%s:%d", ic.Path, ic.Line)), authorTag.Render("@"+ic.User.Login))
 			for _, line := range wrap(ic.Body, bodyW) {
 				fmt.Fprintf(&b, "  %s\n", line)
 			}
