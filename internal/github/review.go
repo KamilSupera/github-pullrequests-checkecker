@@ -25,6 +25,11 @@ type apiBody struct {
 }
 
 func BuildReviewBody(summary string, comments []ReviewComment) ([]byte, error) {
+	// GitHub rejects payloads where "comments" is null. Ensure the
+	// field marshals as an empty array when the caller passed nil.
+	if comments == nil {
+		comments = []ReviewComment{}
+	}
 	return json.Marshal(apiBody{Body: summary, Comments: comments})
 }
 
@@ -47,6 +52,11 @@ func PostPendingReview(ctx context.Context, prURL, summary string, comments []Re
 	if err != nil {
 		return 0, err
 	}
+
+	// Clear any existing PENDING review from the current user; otherwise
+	// GitHub refuses to create a new one.
+	_ = deletePendingReviews(ctx, owner, repo, num)
+
 	body, err := BuildReviewBody(summary, comments)
 	if err != nil {
 		return 0, err
@@ -70,4 +80,51 @@ func PostPendingReview(ctx context.Context, prURL, summary string, comments []Re
 		return 0, fmt.Errorf("parse gh api response: %w", err)
 	}
 	return resp.ID, nil
+}
+
+// deletePendingReviews removes any review on the PR that is owned by
+// the current user and still in PENDING state. Best-effort: errors
+// are not fatal because GitHub may legitimately have no such review.
+func deletePendingReviews(ctx context.Context, owner, repo, num string) error {
+	me, err := currentUser(ctx)
+	if err != nil {
+		return err
+	}
+
+	listOut, err := runGH(ctx, "api", fmt.Sprintf("repos/%s/%s/pulls/%s/reviews?per_page=100", owner, repo, num))
+	if err != nil {
+		return err
+	}
+	var reviews []struct {
+		ID   int64 `json:"id"`
+		User struct {
+			Login string `json:"login"`
+		} `json:"user"`
+		State string `json:"state"`
+	}
+	if err := json.Unmarshal(listOut, &reviews); err != nil {
+		return err
+	}
+	for _, r := range reviews {
+		if r.State == "PENDING" && strings.EqualFold(r.User.Login, me) {
+			_, _ = runGH(ctx, "api", "-X", "DELETE",
+				fmt.Sprintf("repos/%s/%s/pulls/%s/reviews/%d", owner, repo, num, r.ID))
+		}
+	}
+	return nil
+}
+
+// currentUser returns the authenticated GitHub username.
+func currentUser(ctx context.Context) (string, error) {
+	out, err := runGH(ctx, "api", "user")
+	if err != nil {
+		return "", err
+	}
+	var u struct {
+		Login string `json:"login"`
+	}
+	if err := json.Unmarshal(out, &u); err != nil {
+		return "", err
+	}
+	return u.Login, nil
 }
