@@ -16,6 +16,9 @@ Diff:
 diff --git a/foo.go b/foo.go
 +func cached() {}
 
+Only include comments at severity "blocker" or "major".
+Do NOT include nit, minor, style, or formatting suggestions.
+
 Return ONLY JSON matching this schema (no prose before or after):
 {
   "summary": "string (overall review summary, 2-5 sentences)",
@@ -25,7 +28,7 @@ Return ONLY JSON matching this schema (no prose before or after):
       "line": <int, line number in NEW file>,
       "side": "RIGHT" | "LEFT",
       "body": "review comment",
-      "severity": "blocker" | "major" | "minor" | "nit"
+      "severity": "blocker" | "major"
     }
   ]
 }

@@ -41,7 +41,7 @@ func (fakeClaude) Invoke(ctx context.Context, prompt string) (*claude.Review, er
 	return &claude.Review{
 		Summary: "LGTM",
 		Comments: []claude.ReviewComment{
-			{Path: "x", Line: 1, Side: "RIGHT", Body: "nit", Severity: "nit"},
+			{Path: "x", Line: 1, Side: "RIGHT", Body: "fix race", Severity: "major"},
 		},
 	}, nil
 }

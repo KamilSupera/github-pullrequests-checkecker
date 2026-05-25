@@ -19,7 +19,10 @@ type PromptInput struct {
 	DiffTruncated bool
 }
 
-const schemaBlock = `Return ONLY JSON matching this schema (no prose before or after):
+const schemaBlock = `Only include comments at severity "blocker" or "major".
+Do NOT include nit, minor, style, or formatting suggestions.
+
+Return ONLY JSON matching this schema (no prose before or after):
 {
   "summary": "string (overall review summary, 2-5 sentences)",
   "comments": [
@@ -28,7 +31,7 @@ const schemaBlock = `Return ONLY JSON matching this schema (no prose before or a
       "line": <int, line number in NEW file>,
       "side": "RIGHT" | "LEFT",
       "body": "review comment",
-      "severity": "blocker" | "major" | "minor" | "nit"
+      "severity": "blocker" | "major"
     }
   ]
 }`

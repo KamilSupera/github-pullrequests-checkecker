@@ -126,12 +126,24 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (*Result, 
 	if err != nil {
 		return nil, err
 	}
-	emit(Event{Step: "claude", Status: "done", Note: fmt.Sprintf("got review in %s: %d comments", time.Since(start).Truncate(time.Second), len(review.Comments))})
+	// Filter out low-priority comments. Reviews only carry blocker/major.
+	var kept []claude.ReviewComment
+	dropped := 0
+	for _, c := range review.Comments {
+		if c.Severity == "blocker" || c.Severity == "major" {
+			kept = append(kept, c)
+		} else {
+			dropped++
+		}
+	}
+	claudeNote := fmt.Sprintf("got review in %s: %d kept (%d dropped: nit/minor)",
+		time.Since(start).Truncate(time.Second), len(kept), dropped)
+	emit(Event{Step: "claude", Status: "done", Note: claudeNote})
 
 	// post
-	emit(Event{Step: "post", Status: "start", Note: fmt.Sprintf("POSTing %d inline comments as PENDING review", len(review.Comments))})
-	ghComments := make([]github.ReviewComment, len(review.Comments))
-	for i, c := range review.Comments {
+	emit(Event{Step: "post", Status: "start", Note: fmt.Sprintf("POSTing %d inline comments as PENDING review", len(kept))})
+	ghComments := make([]github.ReviewComment, len(kept))
+	for i, c := range kept {
 		ghComments[i] = github.ReviewComment{
 			Path:     c.Path,
 			Line:     c.Line,
