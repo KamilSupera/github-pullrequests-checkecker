@@ -32,6 +32,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKey(msg)
 
 	case diffLoadedMsg:
+		delete(m.loadingDiff, msg.url)
 		if msg.err == nil {
 			colored := colorizeDiff(msg.diff)
 			m.diffs[msg.url] = colored
@@ -55,6 +56,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case prDetailMsg:
+		delete(m.loadingDetail, msg.url)
 		if msg.err == nil {
 			m.details[msg.url] = msg.detail
 			m.commentsOffset = 0
@@ -161,7 +163,11 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if _, cached := m.details[pr.URL]; cached {
 			return m, nil
 		}
-		return m, m.loadDetail(pr.URL)
+		if m.loadingDetail[pr.URL] {
+			return m, nil
+		}
+		m.loadingDetail[pr.URL] = true
+		return m, tea.Batch(m.spinner.Tick, m.loadDetail(pr.URL))
 
 	case "d":
 		pr, ok := m.currentPR()
@@ -174,8 +180,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.diffVP.GotoTop()
 			return m, nil
 		}
-		m.diffVP.SetContent("loading diff...")
-		return m, m.loadDiff(pr.URL)
+		m.loadingDiff[pr.URL] = true
+		m.diffVP.SetContent(spinnerLine(m.spinner.View(), "loading diff..."))
+		return m, tea.Batch(m.spinner.Tick, m.loadDiff(pr.URL))
 
 	case "tab":
 		m.tab = (m.tab + 1) % 3

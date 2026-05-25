@@ -290,6 +290,11 @@ func (m Model) renderRight() string {
 	return m.renderDetail()
 }
 
+// spinnerLine combines an active spinner frame with a message.
+func spinnerLine(frame, msg string) string {
+	return frame + " " + msg
+}
+
 func (m Model) renderDetail() string {
 	pr, ok := m.currentPR()
 	if !ok {
@@ -302,7 +307,11 @@ func (m Model) renderDetail() string {
 		if pr.Repo != "" {
 			fmt.Fprintf(&b, "%s\n", dim.Render(pr.Repo))
 		}
-		fmt.Fprintf(&b, "\n%s\n", hint.Render("Press Space to load detail."))
+		if m.loadingDetail[pr.URL] {
+			fmt.Fprintf(&b, "\n%s\n", spinnerLine(m.spinner.View(), "loading detail..."))
+		} else {
+			fmt.Fprintf(&b, "\n%s\n", hint.Render("Press Space to load detail."))
+		}
 		return b.String()
 	}
 	var b strings.Builder

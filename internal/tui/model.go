@@ -36,6 +36,9 @@ type Model struct {
 	details map[string]*github.PRDetail
 	diffs   map[string]string
 
+	loadingDetail map[string]bool
+	loadingDiff   map[string]bool
+
 	running    bool
 	steps      []string // history of progress events
 	lastReview *reviewDoneMsg
@@ -71,8 +74,10 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, rp runPipelineFn, open o
 		openURL:  open,
 		prsByTab: map[Tab][]github.PR{},
 		loadErr:  map[Tab]error{},
-		details:  map[string]*github.PRDetail{},
-		diffs:    map[string]string{},
+		details:       map[string]*github.PRDetail{},
+		diffs:         map[string]string{},
+		loadingDetail: map[string]bool{},
+		loadingDiff:   map[string]bool{},
 		diffVP:   viewport.New(80, 20),
 		listH:    20,
 		termW:    80,
