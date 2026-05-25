@@ -19,6 +19,11 @@ diff --git a/foo.go b/foo.go
 Only include comments at severity "blocker" or "major".
 Do NOT include nit, minor, style, or formatting suggestions.
 
+Each "body" must be plain prose. Do NOT prefix it with severity tags
+like "[blocker]" or "**MAJOR**:", emoji or icons (🔴 ⚠️ ✗ etc.), or
+line markers like "L28:". The severity goes in the "severity" field
+and the line goes in the "line" field — keep them out of the body.
+
 Return ONLY JSON matching this schema (no prose before or after):
 {
   "summary": "string (overall review summary, 2-5 sentences)",

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -163,7 +164,7 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (*Result, 
 			Path:     c.Path,
 			Line:     c.Line,
 			Side:     c.Side,
-			Body:     "[" + c.Severity + "] " + c.Body,
+			Body:     stripDecorations(c.Body),
 			Severity: c.Severity,
 		}
 	}
@@ -213,6 +214,29 @@ func truncateStr(s string, n int) string {
 		return s
 	}
 	return s[:n-1] + "…"
+}
+
+// stripDecorations removes severity prefixes and leading emoji/icons
+// Claude sometimes prepends to comment bodies (e.g. "[blocker] 🔴 ...",
+// "**MAJOR**: ...", "⚠️ L28: ..."). We want clean prose; severity is
+// tracked separately and the line is implicit from the comment anchor.
+var (
+	reSevPrefix  = regexp.MustCompile(`(?i)^\s*[\[(*]+\s*(blocker|major|minor|nit|warning|error|fixme|todo)\s*[\])*:]+\s*`)
+	reLeadingEmoji = regexp.MustCompile(`^\s*[\p{So}\p{Sk}\p{Sm}\p{M}\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE00}-\x{FE0F}\x{200D}]+\s*`)
+	reLPrefix    = regexp.MustCompile(`(?i)^\s*L\d+\s*[:\-]?\s*`)
+)
+
+func stripDecorations(s string) string {
+	prev := ""
+	out := strings.TrimSpace(s)
+	for prev != out {
+		prev = out
+		out = reSevPrefix.ReplaceAllString(out, "")
+		out = reLeadingEmoji.ReplaceAllString(out, "")
+		out = reLPrefix.ReplaceAllString(out, "")
+		out = strings.TrimSpace(out)
+	}
+	return out
 }
 
 // dumpFailedReview persists the review payload to /tmp so a failed POST
