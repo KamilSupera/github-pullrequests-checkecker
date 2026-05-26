@@ -9,9 +9,22 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/ksupera/prcheck/internal/cache"
 	"github.com/ksupera/prcheck/internal/github"
 	"github.com/ksupera/prcheck/internal/pipeline"
 )
+
+func tabCacheKey(t Tab) string {
+	switch t {
+	case TabMine:
+		return "mine"
+	case TabReview:
+		return "review"
+	case TabMentioned:
+		return "mentioned"
+	}
+	return "unknown"
+}
 
 type stepRec struct {
 	step   string
@@ -83,6 +96,14 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, rp runPipelineFn, open o
 	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffb000"))
 
 	ctx, cancel := context.WithCancel(context.Background())
+	prsByTab := map[Tab][]github.PR{}
+	// Preload from disk cache so the first frame shows immediately
+	// while the background fetches run.
+	for _, t := range []Tab{TabMine, TabReview, TabMentioned} {
+		if s := cache.Load(tabCacheKey(t)); s != nil {
+			prsByTab[t] = s.PRs
+		}
+	}
 	return Model{
 		ctx:      ctx,
 		cancel:   cancel,
@@ -91,7 +112,7 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, rp runPipelineFn, open o
 		diffFn:   dfn,
 		runPipe:  rp,
 		openURL:  open,
-		prsByTab: map[Tab][]github.PR{},
+		prsByTab: prsByTab,
 		loadErr:  map[Tab]error{},
 		details:       map[string]*github.PRDetail{},
 		diffs:         map[string]string{},

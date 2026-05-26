@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/ksupera/prcheck/internal/cache"
 	"github.com/ksupera/prcheck/internal/pipeline"
 )
 
@@ -58,6 +59,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return msg.prs[i].UpdatedAt > msg.prs[j].UpdatedAt
 			})
 			m.prsByTab[msg.tab] = msg.prs
+			cache.Save(tabCacheKey(msg.tab), msg.prs)
 		}
 		m = m.scrollListIntoView()
 		return m, nil
