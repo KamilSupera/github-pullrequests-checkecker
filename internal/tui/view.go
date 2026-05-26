@@ -129,8 +129,9 @@ func (m Model) renderFooter() string {
 	} else {
 		items = []kh{
 			{"j/k", "move"},
+			{"[ ]", "detail"},
 			{"J/K", "comments"},
-			{"Space", "detail"},
+			{"Space", "load"},
 			{"d", "diff"},
 			{"⏎", "review"},
 			{"Tab", "tab"},
@@ -348,7 +349,7 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 		Width(paneW).
 		Height(detailH).
 		MaxHeight(detailH + 2).
-		Render(m.renderDetail())
+		Render(m.renderDetailWindow(detailH, paneW))
 
 	commentsBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -448,7 +449,59 @@ func spinnerLine(frame, msg string) string {
 	return frame + " " + msg
 }
 
-func (m Model) renderDetail() string {
+// renderDetailWindow slices the detail content to detailH rows.
+// When content overflows, the last row holds a scroll indicator.
+func (m Model) renderDetailWindow(h, paneW int) string {
+	full := m.renderDetailFull()
+	if full == "" {
+		return ""
+	}
+	lines := strings.Split(full, "\n")
+	overflow := len(lines) > h
+	maxRows := h
+	if overflow {
+		maxRows--
+		if maxRows < 1 {
+			maxRows = 1
+		}
+	}
+	start := m.detailOffset
+	if start > len(lines) {
+		start = len(lines)
+	}
+	if start < 0 {
+		start = 0
+	}
+	end := start + maxRows
+	if end > len(lines) {
+		end = len(lines)
+	}
+	visible := lines[start:end]
+	if overflow {
+		up := " "
+		if start > 0 {
+			up = "↑"
+		}
+		down := " "
+		if end < len(lines) {
+			down = "↓"
+		}
+		visible = append(visible, dim.Render(fmt.Sprintf("  %s%s %d/%d  [/] scroll", up, down, end, len(lines))))
+	}
+	for i, ln := range visible {
+		if lipgloss.Width(ln) > paneW {
+			visible[i] = clipToWidth(ln, paneW)
+		}
+	}
+	return strings.Join(visible, "\n")
+}
+
+// renderDetail is the public name kept for renderRight's fall-through;
+// it returns a single-screen view (no scroll). Used when the right
+// pane is showing the result of a finished pipeline.
+func (m Model) renderDetail() string { return m.renderDetailFull() }
+
+func (m Model) renderDetailFull() string {
 	pr, ok := m.currentPR()
 	if !ok {
 		return dim.Render("(no selection)")

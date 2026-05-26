@@ -30,6 +30,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ch = 4
 		}
 		m.commentsH = ch
+		m.detailH = detailH
 		m = m.scrollListIntoView()
 		return m, nil
 
@@ -65,6 +66,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			m.details[msg.url] = msg.detail
 			m.commentsOffset = 0
+			m.detailOffset = 0
 		}
 		return m, nil
 
@@ -135,6 +137,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.cursor < len(prs)-1 {
 			m.cursor++
 			m.commentsOffset = 0
+			m.detailOffset = 0
 		}
 		m = m.scrollListIntoView()
 		return m, nil
@@ -143,6 +146,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.cursor > 0 {
 			m.cursor--
 			m.commentsOffset = 0
+			m.detailOffset = 0
 		}
 		m = m.scrollListIntoView()
 		return m, nil
@@ -155,6 +159,16 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "K", "pgup":
 		m.commentsOffset -= m.commentsH - 1
 		m = m.clampCommentsOffset()
+		return m, nil
+
+	case "]":
+		m.detailOffset += m.detailH - 1
+		m = m.clampDetailOffset()
+		return m, nil
+
+	case "[":
+		m.detailOffset -= m.detailH - 1
+		m = m.clampDetailOffset()
 		return m, nil
 
 	case "g", "home":
@@ -210,6 +224,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.cursor = 0
 		m.listOffset = 0
 		m.commentsOffset = 0
+		m.detailOffset = 0
 		return m, nil
 
 	case "shift+tab":
@@ -252,6 +267,31 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// clampDetailOffset keeps m.detailOffset within [0, totalLines-visible].
+func (m Model) clampDetailOffset() Model {
+	full := m.renderDetailFull()
+	if full == "" {
+		m.detailOffset = 0
+		return m
+	}
+	total := strings.Count(full, "\n") + 1
+	visible := m.detailH - 1
+	if visible < 1 {
+		visible = 1
+	}
+	max := total - visible
+	if max < 0 {
+		max = 0
+	}
+	if m.detailOffset > max {
+		m.detailOffset = max
+	}
+	if m.detailOffset < 0 {
+		m.detailOffset = 0
+	}
+	return m
 }
 
 // clampCommentsOffset keeps m.commentsOffset within [0, maxOffset]

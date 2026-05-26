@@ -60,6 +60,9 @@ type Model struct {
 	commentsOffset int // first visible line in the comments box
 	commentsH      int // visible height of the comments box
 
+	detailOffset int // first visible line in the detail box
+	detailH      int // visible height of the detail box
+
 	termW int // last reported terminal width
 	termH int // last reported terminal height
 
