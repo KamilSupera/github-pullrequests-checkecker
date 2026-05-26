@@ -41,6 +41,38 @@ func pickChromaStyle() *chroma.Style {
 	return styles.Fallback
 }
 
+// fileBoundaries returns the 0-indexed line numbers (within the
+// rendered diff) where each new file section starts, identified by
+// the "diff --git" header. Used by the TUI's n/p keys to jump
+// between files in the diff viewport.
+func fileBoundaries(rendered string) []int {
+	var out []int
+	for i, line := range strings.Split(rendered, "\n") {
+		// strip ANSI codes
+		clean := ansiStrip(line)
+		if strings.HasPrefix(clean, "diff --git") {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// ansiStrip removes ANSI escape sequences so we can prefix-match.
+func ansiStrip(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == 0x1b {
+			// skip until letter terminator
+			for i < len(s) && (s[i] < 'A' || (s[i] > 'Z' && s[i] < 'a') || s[i] > 'z') {
+				i++
+			}
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
 // colorizeDiff takes a unified diff and returns the same text with ANSI
 // color codes applied. File/hunk headers are colored distinctly;
 // added/removed lines are tinted; code on those lines is syntax-

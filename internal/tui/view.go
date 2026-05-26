@@ -156,6 +156,7 @@ func (m Model) renderFooter() string {
 	if m.viewingDiff {
 		items = []kh{
 			{"j/k", "scroll"},
+			{"n/p", "file ±"},
 			{"PgUp/PgDn", "page"},
 			{"d/Esc", "back"},
 			{"q", "quit"},

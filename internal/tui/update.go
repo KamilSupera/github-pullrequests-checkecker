@@ -184,6 +184,37 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			m.cancel()
 			return m, tea.Quit
+		case "n":
+			if pr, ok := m.currentPR(); ok {
+				if diff, cached := m.diffs[pr.URL]; cached {
+					boundaries := fileBoundaries(diff)
+					cur := m.diffVP.YOffset
+					for _, b := range boundaries {
+						if b > cur {
+							m.diffVP.SetYOffset(b)
+							return m, nil
+						}
+					}
+				}
+			}
+			return m, nil
+		case "p":
+			if pr, ok := m.currentPR(); ok {
+				if diff, cached := m.diffs[pr.URL]; cached {
+					boundaries := fileBoundaries(diff)
+					cur := m.diffVP.YOffset
+					target := 0
+					for _, b := range boundaries {
+						if b < cur {
+							target = b
+						} else {
+							break
+						}
+					}
+					m.diffVP.SetYOffset(target)
+				}
+			}
+			return m, nil
 		}
 		var cmd tea.Cmd
 		m.diffVP, cmd = m.diffVP.Update(msg)
