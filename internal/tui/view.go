@@ -661,11 +661,8 @@ func (m Model) renderDetailFull() string {
 		fmt.Fprintf(&b, "%s%s\n", label.Render("updated"), dim.Render(shortTime(d.UpdatedAt)))
 	}
 
-	if body := strings.TrimSpace(stripCommentMarkdown(d.Body)); body != "" {
-		fmt.Fprintf(&b, "\n%s\n", repoHeader.Render("◆ Description"))
-		for _, line := range wrap(body, bodyW) {
-			fmt.Fprintf(&b, "%s\n", line)
-		}
+	if rendered := renderMarkdown(d.Body, bodyW); rendered != "" {
+		fmt.Fprintf(&b, "\n%s\n%s\n", repoHeader.Render("◆ Description"), rendered)
 	}
 
 	fmt.Fprintf(&b, "\n%s %s", keyCap.Render("⏎"), hint.Render("run review"))
@@ -766,9 +763,9 @@ func (m Model) renderComments() string {
 				state = badgeCommented.Render(r.State)
 			}
 			fmt.Fprintf(&b, "%s %s %s\n", state, authorTag.Render("@"+r.Author()), dim.Render(shortTime(r.SubmittedAt)))
-			body := cleanCommentBody(r.Body)
+			body := renderMarkdown(r.Body, bodyW-2)
 			if body != "" {
-				for _, line := range wrap(body, bodyW) {
+				for _, line := range strings.Split(body, "\n") {
 					fmt.Fprintf(&b, "  %s\n", line)
 				}
 			}
@@ -781,12 +778,12 @@ func (m Model) renderComments() string {
 		}
 		fmt.Fprintf(&b, "%s\n", repoHeader.Render(fmt.Sprintf("◆ Comments (%d)", len(d.Comments))))
 		for _, c := range d.Comments {
-			body := cleanCommentBody(c.Body)
+			body := renderMarkdown(c.Body, bodyW-2)
 			if body == "" {
 				continue
 			}
 			fmt.Fprintf(&b, "%s %s\n", authorTag.Render("@"+c.Author()), dim.Render(shortTime(c.CreatedAt)))
-			for _, line := range wrap(body, bodyW) {
+			for _, line := range strings.Split(body, "\n") {
 				fmt.Fprintf(&b, "  %s\n", line)
 			}
 		}
@@ -798,9 +795,9 @@ func (m Model) renderComments() string {
 		}
 		fmt.Fprintf(&b, "%s\n", repoHeader.Render(fmt.Sprintf("◆ Inline (%d)", len(d.Inline))))
 		for _, ic := range d.Inline {
-			body := cleanCommentBody(ic.Body)
+			body := renderMarkdown(ic.Body, bodyW-2)
 			fmt.Fprintf(&b, "%s %s\n", lipgloss.NewStyle().Foreground(colPink).Render(fmt.Sprintf("%s:%d", ic.Path, ic.Line)), authorTag.Render("@"+ic.User.Login))
-			for _, line := range wrap(body, bodyW) {
+			for _, line := range strings.Split(body, "\n") {
 				fmt.Fprintf(&b, "  %s\n", line)
 			}
 		}
