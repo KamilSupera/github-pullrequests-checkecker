@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -65,6 +66,9 @@ type Model struct {
 
 	resultOffset int // first visible line in the review-result view
 	resultH      int // visible height of the result pane
+
+	filtering bool   // is the filter input active
+	filter    string // current filter substring (case-insensitive)
 
 	termW int // last reported terminal width
 	termH int // last reported terminal height
@@ -139,11 +143,32 @@ func (m Model) currentPR() (github.PR, bool) {
 
 // flatGroupedPRs returns the PRs of the current tab in the exact order
 // they appear in the rendered list — derived from groupByRepo so the
-// two stay in lockstep.
+// two stay in lockstep. Filter is applied when set.
 func (m Model) flatGroupedPRs() []github.PR {
+	src := m.filteredPRs()
 	var out []github.PR
-	for _, g := range groupByRepo(m.prsByTab[m.tab]) {
+	for _, g := range groupByRepo(src) {
 		out = append(out, g.prs...)
+	}
+	return out
+}
+
+// filteredPRs returns the current tab's PRs filtered by m.filter
+// (case-insensitive substring match against title, repo, and branch).
+func (m Model) filteredPRs() []github.PR {
+	prs := m.prsByTab[m.tab]
+	if m.filter == "" {
+		return prs
+	}
+	q := strings.ToLower(m.filter)
+	var out []github.PR
+	for _, pr := range prs {
+		if strings.Contains(strings.ToLower(pr.Title), q) ||
+			strings.Contains(strings.ToLower(pr.Repo), q) ||
+			strings.Contains(strings.ToLower(pr.HeadRefName), q) ||
+			strings.Contains(strings.ToLower(pr.Author), q) {
+			out = append(out, pr)
+		}
 	}
 	return out
 }

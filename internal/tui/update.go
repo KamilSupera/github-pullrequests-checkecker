@@ -106,6 +106,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 
+	// Filter input mode captures most keystrokes for typing the query.
+	if m.filtering {
+		switch key {
+		case "esc":
+			m.filtering = false
+			m.filter = ""
+			m.cursor = 0
+			return m, nil
+		case "enter":
+			m.filtering = false
+			return m, nil
+		case "backspace":
+			if len(m.filter) > 0 {
+				r := []rune(m.filter)
+				m.filter = string(r[:len(r)-1])
+				m.cursor = 0
+			}
+			return m, nil
+		case "ctrl+u":
+			m.filter = ""
+			m.cursor = 0
+			return m, nil
+		default:
+			if len(key) == 1 {
+				m.filter += key
+				m.cursor = 0
+			}
+			return m, nil
+		}
+	}
+
 	// When viewing a diff, j/k/pgup/pgdn scroll the viewport;
 	// d or esc returns to the detail pane.
 	if m.viewingDiff {
@@ -250,7 +281,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "esc":
-		// Dismiss the review-result view, return to normal detail/list.
+		// First esc clears an active filter; second dismisses the result view.
+		if m.filter != "" {
+			m.filter = ""
+			m.cursor = 0
+			return m, nil
+		}
 		m.lastReview = nil
 		m.steps = nil
 		return m, nil
@@ -306,6 +342,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.listOffset = 0
 		m.commentsOffset = 0
 		return m, m.loadTab(m.tab)
+
+	case "/":
+		m.filtering = true
+		return m, nil
 
 	case "o":
 		pr, ok := m.currentPR()

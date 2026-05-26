@@ -111,7 +111,25 @@ func (m Model) View() string {
 	body := lipgloss.JoinHorizontal(lipgloss.Top, leftPane.Render(left), right)
 
 	footer := m.renderFooter()
+	if m.filtering || m.filter != "" {
+		footer = m.renderFilterLine() + "\n" + footer
+	}
 	return strings.Join([]string{header, body, footer}, "\n")
+}
+
+func (m Model) renderFilterLine() string {
+	prompt := lipgloss.NewStyle().Foreground(colMauve).Bold(true).Render("/")
+	q := lipgloss.NewStyle().Foreground(colFG).Render(m.filter)
+	if m.filtering {
+		q += lipgloss.NewStyle().Foreground(colMauve).Render("█")
+	}
+	tail := ""
+	if m.filtering {
+		tail = "  " + dim.Render("Enter accept · Esc clear · Ctrl+U wipe")
+	} else if m.filter != "" {
+		tail = "  " + dim.Render(fmt.Sprintf("(%d matches — / to edit, Esc to clear)", len(m.filteredPRs())))
+	}
+	return prompt + q + tail
 }
 
 // renderFooter shows keycap-style help, switching to a diff-specific
@@ -244,7 +262,7 @@ func (m Model) listLines() (lines []string, cursorLine int) {
 	if titleW < 10 {
 		titleW = 10
 	}
-	prs := m.prsByTab[m.tab]
+	prs := m.filteredPRs()
 	groups := groupByRepo(prs)
 	idx := 0
 	cursorStyle := lipgloss.NewStyle().Foreground(colMauve).Bold(true)
