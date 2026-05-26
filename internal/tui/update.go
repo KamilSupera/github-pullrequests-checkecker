@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -81,6 +82,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.loadErr[msg.tab] = msg.err
 		} else {
+			// Compute deltas vs the cached snapshot before overwriting it,
+			// then fire desktop notifications if PRCHECK_NOTIFY=1.
+			if os.Getenv("PRCHECK_NOTIFY") == "1" {
+				prev := cache.Load(tabCacheKey(msg.tab))
+				if changed := cache.DetectChanges(prev, msg.prs); len(changed) > 0 {
+					cache.Notify(
+						fmt.Sprintf("prcheck — %s", msg.tab.Label()),
+						fmt.Sprintf("%d PRs updated since last fetch", len(changed)),
+					)
+				}
+			}
 			sort.Slice(msg.prs, func(i, j int) bool {
 				return msg.prs[i].UpdatedAt > msg.prs[j].UpdatedAt
 			})
@@ -449,6 +461,37 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case "R":
+		// Open the PR's checks page in the browser.
+		pr, ok := m.currentPR()
+		if !ok {
+			return m, nil
+		}
+		_ = m.openURL(pr.URL + "/checks")
+		m.statusMsg = "opened checks page in browser"
+		return m, nil
+
+	case "B":
+		// Review every bookmarked PR sequentially.
+		if m.bookmarks == nil || len(m.bookmarks.URLs) == 0 {
+			m.statusMsg = "no bookmarks to batch-review"
+			return m, nil
+		}
+		if m.running {
+			return m, nil
+		}
+		urls := make([]string, 0, len(m.bookmarks.URLs))
+		for u := range m.bookmarks.URLs {
+			urls = append(urls, u)
+		}
+		ctx, cancel := context.WithCancel(m.ctx)
+		m.pipeCancel = cancel
+		m.running = true
+		m.steps = nil
+		m.lastReview = nil
+		m.statusMsg = fmt.Sprintf("batch-reviewing %d bookmark(s)...", len(urls))
+		return m, m.runBatch(ctx, urls)
+
 	case "c":
 		pr, ok := m.currentPR()
 		if !ok {
@@ -653,6 +696,29 @@ func (m Model) loadChecks(url string) tea.Cmd {
 	return func() tea.Msg {
 		c, err := m.checksFn(m.ctx, url)
 		return checksLoadedMsg{url: url, checks: c, err: err}
+	}
+}
+
+// runBatch runs the pipeline against each URL in sequence, returning
+// the final reviewDoneMsg for the LAST PR. Intermediate results are
+// dropped silently — only the final status appears in the result pane.
+func (m Model) runBatch(ctx context.Context, urls []string) tea.Cmd {
+	return func() tea.Msg {
+		var last reviewDoneMsg
+		for _, u := range urls {
+			res, err := m.runPipe(ctx, u, func(pipeline.Event) {})
+			last = reviewDoneMsg{url: u, err: err}
+			if res != nil {
+				last.reviewID = res.ID
+				last.summary = res.Summary
+				last.aspects = res.Aspects
+				last.comments = res.Comments
+			}
+			if ctx.Err() != nil {
+				break
+			}
+		}
+		return last
 	}
 }
 
