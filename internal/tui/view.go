@@ -323,12 +323,18 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 		return fullPane.Render(m.renderRight())
 	}
 
-	detailH := 8
+	// Allocate ~60% of the right column to detail (it now carries
+	// status, labels, assignees, reviewers, description preview), and
+	// the rest to comments. Clamp so the smaller box still has room.
+	detailH := paneH * 6 / 10
+	if detailH < 10 {
+		detailH = 10
+	}
 	commentsH := paneH - 2 - detailH
-	if commentsH < 3 {
-		detailH = paneH - 2 - 3
-		if detailH < 3 {
-			detailH = 3
+	if commentsH < 4 {
+		detailH = paneH - 2 - 4
+		if detailH < 4 {
+			detailH = 4
 		}
 		commentsH = paneH - 2 - detailH
 		if commentsH < 1 {
@@ -463,7 +469,11 @@ func (m Model) renderDetail() string {
 	}
 	label := lipgloss.NewStyle().Foreground(colMauve).Bold(true).Width(8)
 	var b strings.Builder
+	paneW, _ := paneInnerSize(m.termW, m.termH)
+	bodyW := paneW - 2
+
 	fmt.Fprintf(&b, "%s%s\n", label.Render("title"), prTitle.Render(d.Title))
+	fmt.Fprintf(&b, "%s%s\n", label.Render("status"), renderStatusLine(d))
 	fmt.Fprintf(&b, "%s%s %s %s\n",
 		label.Render("branch"),
 		lipgloss.NewStyle().Foreground(colTeal).Render(d.HeadRefName),
@@ -471,6 +481,7 @@ func (m Model) renderDetail() string {
 		lipgloss.NewStyle().Foreground(colTeal).Render(d.BaseRefName),
 	)
 	fmt.Fprintf(&b, "%s%s\n", label.Render("author"), authorTag.Render("@"+d.Author))
+
 	var p, f, q int
 	for _, c := range d.Checks {
 		switch {
@@ -488,8 +499,97 @@ func (m Model) renderDetail() string {
 		pending.Render(fmt.Sprintf("◷ %d", q)),
 	)
 	fmt.Fprintf(&b, "%s%s\n", label.Render("checks"), checks)
+
+	if d.ChangedFiles > 0 || d.Additions > 0 || d.Deletions > 0 {
+		fmt.Fprintf(&b, "%s%s %s %s\n", label.Render("diff"),
+			dim.Render(fmt.Sprintf("%d files", d.ChangedFiles)),
+			pass.Render(fmt.Sprintf("+%d", d.Additions)),
+			fail.Render(fmt.Sprintf("-%d", d.Deletions)),
+		)
+	}
+
+	if len(d.Labels) > 0 {
+		fmt.Fprintf(&b, "%s%s\n", label.Render("labels"), renderLabels(d.Labels))
+	}
+	if len(d.Assignees) > 0 {
+		fmt.Fprintf(&b, "%s%s\n", label.Render("assigned"), renderUserList(d.Assignees))
+	}
+	if len(d.ReviewRequests) > 0 {
+		fmt.Fprintf(&b, "%s%s\n", label.Render("review"), renderUserList(d.ReviewRequests))
+	}
+	if d.UpdatedAt != "" {
+		fmt.Fprintf(&b, "%s%s\n", label.Render("updated"), dim.Render(shortTime(d.UpdatedAt)))
+	}
+
+	if body := strings.TrimSpace(stripCommentMarkdown(d.Body)); body != "" {
+		fmt.Fprintf(&b, "\n%s\n", repoHeader.Render("◆ Description"))
+		for _, line := range wrap(body, bodyW) {
+			fmt.Fprintf(&b, "%s\n", line)
+		}
+	}
+
 	fmt.Fprintf(&b, "\n%s %s", keyCap.Render("⏎"), hint.Render("run review"))
 	return b.String()
+}
+
+// renderStatusLine renders a row of compact pills: state, draft flag,
+// review decision, and merge state. Only present ones render.
+func renderStatusLine(d *github.PRDetail) string {
+	var parts []string
+	switch d.State {
+	case "OPEN":
+		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#1a1305")).Background(colGreen).Padding(0, 1).Render("OPEN"))
+	case "CLOSED":
+		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#1a1305")).Background(colRed).Padding(0, 1).Render("CLOSED"))
+	case "MERGED":
+		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#1a1305")).Background(colMauve).Padding(0, 1).Render("MERGED"))
+	}
+	if d.IsDraft {
+		parts = append(parts, badgeCommented.Render("DRAFT"))
+	}
+	switch d.ReviewDecision {
+	case "APPROVED":
+		parts = append(parts, badgeApproved.Render("APPROVED"))
+	case "CHANGES_REQUESTED":
+		parts = append(parts, badgeChanges.Render("CHANGES"))
+	case "REVIEW_REQUIRED":
+		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#1a1305")).Background(colYellow).Padding(0, 1).Render("REVIEW REQ"))
+	}
+	switch d.Mergeable {
+	case "CONFLICTING":
+		parts = append(parts, badgeChanges.Render("CONFLICT"))
+	case "MERGEABLE":
+		// quiet — most of the time this is true
+	}
+	if len(parts) == 0 {
+		return dim.Render("—")
+	}
+	return strings.Join(parts, " ")
+}
+
+func renderLabels(labels []github.Label) string {
+	var parts []string
+	for _, l := range labels {
+		parts = append(parts, lipgloss.NewStyle().Foreground(colYellow).Render("#"+l.Name))
+	}
+	return strings.Join(parts, " ")
+}
+
+func renderUserList(us []github.User) string {
+	var parts []string
+	for _, u := range us {
+		parts = append(parts, authorTag.Render("@"+u.Login))
+	}
+	return strings.Join(parts, " ")
+}
+
+// stripCommentMarkdown removes hidden markdown markers + HTML tags
+// from a PR body so it reads cleanly in the detail pane.
+func stripCommentMarkdown(s string) string {
+	s = reHiddenMarker.ReplaceAllString(s, "")
+	s = reHTMLTag.ReplaceAllString(s, "")
+	s = reBlankLines.ReplaceAllString(s, "\n\n")
+	return strings.TrimSpace(s)
 }
 
 // renderComments returns reviews + discussion + inline comments. Empty

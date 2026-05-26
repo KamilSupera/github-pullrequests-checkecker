@@ -69,11 +69,32 @@ type Check struct {
 
 type PRDetail struct {
 	PR
-	Body     string          `json:"body"`
-	Checks   []Check         `json:"statusCheckRollup"`
-	Comments []Comment       `json:"comments"`
-	Reviews  []Review        `json:"reviews"`
-	Inline   []InlineComment `json:"-"`
+	Body            string          `json:"body"`
+	Checks          []Check         `json:"statusCheckRollup"`
+	Comments        []Comment       `json:"comments"`
+	Reviews         []Review        `json:"reviews"`
+	State           string          `json:"state"`     // OPEN, CLOSED, MERGED
+	IsDraft         bool            `json:"isDraft"`
+	ReviewDecision  string          `json:"reviewDecision"` // APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED, ""
+	MergeStateStatus string         `json:"mergeStateStatus"`
+	Mergeable       string          `json:"mergeable"` // MERGEABLE, CONFLICTING, UNKNOWN
+	Labels          []Label         `json:"labels"`
+	Assignees       []User          `json:"assignees"`
+	ReviewRequests  []User          `json:"reviewRequests"`
+	UpdatedAt       string          `json:"updatedAt"`
+	ChangedFiles    int             `json:"changedFiles"`
+	Additions       int             `json:"additions"`
+	Deletions       int             `json:"deletions"`
+	Inline          []InlineComment `json:"-"`
+}
+
+type Label struct {
+	Name  string `json:"name"`
+	Color string `json:"color"`
+}
+
+type User struct {
+	Login string `json:"login"`
 }
 
 type Comment struct {
@@ -145,7 +166,7 @@ func SearchPRs(ctx context.Context, q Query) ([]PR, error) {
 func FetchPRDetail(ctx context.Context, url string) (*PRDetail, error) {
 	out, err := runGH(ctx,
 		"pr", "view", url,
-		"--json", "number,title,url,body,headRefName,baseRefName,author,statusCheckRollup,comments,reviews",
+		"--json", "number,title,url,body,headRefName,baseRefName,author,statusCheckRollup,comments,reviews,state,isDraft,reviewDecision,mergeStateStatus,mergeable,labels,assignees,reviewRequests,updatedAt,changedFiles,additions,deletions",
 	)
 	if err != nil {
 		return nil, err

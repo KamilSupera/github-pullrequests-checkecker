@@ -20,10 +20,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.diffVP.Width = paneW
 		m.diffVP.Height = paneH
 		m.listH = paneH
-		// detail box uses 8 inner rows by default; the rest goes to comments.
-		ch := paneH - 2 - 8
-		if ch < 3 {
-			ch = 3
+		// Detail box gets ~60% of the right column; the rest is comments.
+		detailH := paneH * 6 / 10
+		if detailH < 10 {
+			detailH = 10
+		}
+		ch := paneH - 2 - detailH
+		if ch < 4 {
+			ch = 4
 		}
 		m.commentsH = ch
 		m = m.scrollListIntoView()
