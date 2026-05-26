@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -50,6 +51,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.diffVP.SetContent(colored)
 				m.diffVP.GotoTop()
 			}
+		}
+		return m, nil
+
+	case quickReviewDoneMsg:
+		if msg.err != nil {
+			m.statusMsg = "quick-review failed: " + msg.err.Error()
+		} else {
+			m.statusMsg = fmt.Sprintf("%s posted as review #%d", msg.event, msg.id)
 		}
 		return m, nil
 
@@ -354,6 +363,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.diffVP.SetContent(spinnerLine(m.spinner.View(), "loading diff..."))
 		return m, tea.Batch(m.spinner.Tick, m.loadDiff(pr.URL))
 
+	case "a":
+		pr, ok := m.currentPR()
+		if !ok {
+			return m, nil
+		}
+		m.statusMsg = "approving..."
+		return m, m.quickReviewCmd(pr.URL, "APPROVE", "LGTM")
+
 	case "c":
 		pr, ok := m.currentPR()
 		if !ok {
@@ -558,6 +575,13 @@ func (m Model) loadChecks(url string) tea.Cmd {
 	return func() tea.Msg {
 		c, err := m.checksFn(m.ctx, url)
 		return checksLoadedMsg{url: url, checks: c, err: err}
+	}
+}
+
+func (m Model) quickReviewCmd(prURL, event, body string) tea.Cmd {
+	return func() tea.Msg {
+		id, err := m.quickReview(m.ctx, prURL, event, body)
+		return quickReviewDoneMsg{url: prURL, event: event, id: id, err: err}
 	}
 }
 

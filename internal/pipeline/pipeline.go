@@ -50,6 +50,10 @@ type Deps struct {
 	Jira   JiraClient
 	Claude ClaudeInvoker
 	Post   Poster
+
+	// Focus is forwarded to the prompt to emphasize particular review
+	// aspects. Empty means balanced review.
+	Focus []string
 }
 
 type Event struct {
@@ -115,6 +119,7 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (*Result, 
 		PendingChecks: checks.PendingNames,
 		Diff:          cappedDiff,
 		DiffTruncated: truncated,
+		Focus:         d.Focus,
 	}
 	if iss != nil {
 		in.JiraKey = iss.Key

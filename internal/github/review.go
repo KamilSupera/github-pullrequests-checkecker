@@ -47,6 +47,37 @@ func parseRepoFromURL(prURL string) (string, string, string, error) {
 	return parts[0], parts[1], parts[3], nil
 }
 
+// PostQuickReview posts a review with no inline comments and an
+// explicit event ("APPROVE", "COMMENT", "REQUEST_CHANGES"). Used by
+// the TUI's a/b keys for one-shot reviews without running Claude.
+func PostQuickReview(ctx context.Context, prURL, event, body string) (int64, error) {
+	owner, repo, num, err := parseRepoFromURL(prURL)
+	if err != nil {
+		return 0, err
+	}
+	payload := map[string]any{"event": event, "body": body, "comments": []ReviewComment{}}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return 0, err
+	}
+	endpoint := fmt.Sprintf("repos/%s/%s/pulls/%s/reviews", owner, repo, num)
+	var stdout, stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, "gh", "api", "-X", "POST", endpoint, "--input", "-")
+	cmd.Stdin = bytes.NewReader(data)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return 0, fmt.Errorf("gh api: %w (stderr: %s)", err, stderr.String())
+	}
+	var resp struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &resp); err != nil {
+		return 0, fmt.Errorf("parse gh api response: %w", err)
+	}
+	return resp.ID, nil
+}
+
 func PostPendingReview(ctx context.Context, prURL, summary string, comments []ReviewComment) (int64, error) {
 	owner, repo, num, err := parseRepoFromURL(prURL)
 	if err != nil {

@@ -17,6 +17,9 @@ type PromptInput struct {
 	PendingChecks []string
 	Diff          string
 	DiffTruncated bool
+	// Focus aspects (security, performance, ...) to emphasize. Empty
+	// means balanced review across all aspects.
+	Focus []string
 }
 
 const schemaBlock = `Review the diff across these aspects (report each in "aspects" below):
@@ -96,6 +99,11 @@ func BuildPrompt(in PromptInput) string {
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
+
+	if len(in.Focus) > 0 {
+		fmt.Fprintf(&b, "FOCUS: emphasize these aspects above all others: %s.\n\n",
+			strings.Join(in.Focus, ", "))
+	}
 
 	b.WriteString(schemaBlock)
 	b.WriteString("\n")

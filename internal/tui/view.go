@@ -112,6 +112,9 @@ func (m Model) View() string {
 	body := lipgloss.JoinHorizontal(lipgloss.Top, leftPane.Render(left), right)
 
 	footer := m.renderFooter()
+	if m.statusMsg != "" {
+		footer = lipgloss.NewStyle().Foreground(colYellow).Render(m.statusMsg) + "\n" + footer
+	}
 	if m.filtering || m.filter != "" {
 		footer = m.renderFilterLine() + "\n" + footer
 	}

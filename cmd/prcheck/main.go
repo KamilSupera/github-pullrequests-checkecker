@@ -61,6 +61,7 @@ func run() error {
 			Jira:   jiraFetcher,
 			Claude: claudeAdapter{},
 			Post:   poster,
+			Focus:  cfg.Focus,
 		}
 		return pipeline.Run(ctx, deps, prURL, wrappedEmit)
 	}
@@ -77,8 +78,11 @@ func run() error {
 	checksFn := func(ctx context.Context, url string) (string, error) {
 		return github.FetchChecks(ctx, url)
 	}
+	quickReviewFn := func(ctx context.Context, url, event, body string) (int64, error) {
+		return github.PostQuickReview(ctx, url, event, body)
+	}
 
-	model := tui.NewModel(loader, detailFn, diffFn, checksFn, runPipe, openInBrowser)
+	model := tui.NewModel(loader, detailFn, diffFn, checksFn, quickReviewFn, runPipe, openInBrowser)
 	program = tea.NewProgram(model, tea.WithAltScreen())
 	_, err = program.Run()
 	return err

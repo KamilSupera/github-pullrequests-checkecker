@@ -50,6 +50,13 @@ type checksLoadedMsg struct {
 	err    error
 }
 
+type quickReviewDoneMsg struct {
+	url   string
+	event string // APPROVE etc.
+	id    int64
+	err   error
+}
+
 type Tab int
 
 const (

@@ -37,6 +37,7 @@ type loaderFn func(ctx context.Context, q github.Query) ([]github.PR, error)
 type detailFn func(ctx context.Context, url string) (*github.PRDetail, error)
 type diffFn func(ctx context.Context, url string) (string, error)
 type checksFn func(ctx context.Context, url string) (string, error)
+type quickReviewFn func(ctx context.Context, prURL, event, body string) (int64, error)
 type runPipelineFn func(ctx context.Context, prURL string, emit func(pipeline.Event)) (*pipeline.Result, error)
 type openFn func(url string) error
 
@@ -45,12 +46,15 @@ type Model struct {
 	cancel     context.CancelFunc
 	pipeCancel context.CancelFunc // cancel only the running pipeline
 
-	loader   loaderFn
-	detailFn detailFn
-	diffFn   diffFn
-	checksFn checksFn
-	runPipe  runPipelineFn
-	openURL  openFn
+	loader      loaderFn
+	detailFn    detailFn
+	diffFn      diffFn
+	checksFn    checksFn
+	quickReview quickReviewFn
+	runPipe     runPipelineFn
+	openURL     openFn
+
+	statusMsg string // ephemeral status line (e.g. "Approved #1234")
 
 	tab      Tab
 	prsByTab map[Tab][]github.PR
@@ -98,7 +102,7 @@ type Model struct {
 	err     error
 }
 
-func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, rp runPipelineFn, open openFn) Model {
+func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, qr quickReviewFn, rp runPipelineFn, open openFn) Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.MiniDot
 	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffb000"))
@@ -115,12 +119,13 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, rp runPipel
 	return Model{
 		ctx:      ctx,
 		cancel:   cancel,
-		loader:   loader,
-		detailFn: df,
-		diffFn:   dfn,
-		checksFn: cf,
-		runPipe:  rp,
-		openURL:  open,
+		loader:      loader,
+		detailFn:    df,
+		diffFn:      dfn,
+		checksFn:    cf,
+		quickReview: qr,
+		runPipe:     rp,
+		openURL:     open,
 		prsByTab: prsByTab,
 		loadErr:  map[Tab]error{},
 		seen:     cache.LoadSeen(),
