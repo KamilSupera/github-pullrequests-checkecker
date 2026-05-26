@@ -438,10 +438,52 @@ func (m Model) renderRight() string {
 		// Show the result only while the cursor is still on the PR
 		// it belongs to; moving the cursor reverts to detail view.
 		if pr, ok := m.currentPR(); ok && pr.URL == m.lastReview.url {
-			return m.renderReviewResult()
+			return m.renderResultWindow(m.resultH)
 		}
 	}
 	return m.renderDetail()
+}
+
+// renderResultWindow slices the review-result content to fit resultH
+// rows. Last row shows a scroll indicator when content overflows.
+func (m Model) renderResultWindow(h int) string {
+	full := m.renderReviewResult()
+	if full == "" {
+		return ""
+	}
+	lines := strings.Split(full, "\n")
+	overflow := len(lines) > h
+	maxRows := h
+	if overflow {
+		maxRows--
+		if maxRows < 1 {
+			maxRows = 1
+		}
+	}
+	start := m.resultOffset
+	if start > len(lines) {
+		start = len(lines)
+	}
+	if start < 0 {
+		start = 0
+	}
+	end := start + maxRows
+	if end > len(lines) {
+		end = len(lines)
+	}
+	visible := lines[start:end]
+	if overflow {
+		up := " "
+		if start > 0 {
+			up = "↑"
+		}
+		down := " "
+		if end < len(lines) {
+			down = "↓"
+		}
+		visible = append(visible, dim.Render(fmt.Sprintf("  %s%s %d/%d  j/k scroll", up, down, end, len(lines))))
+	}
+	return strings.Join(visible, "\n")
 }
 
 // spinnerLine combines an active spinner frame with a message.

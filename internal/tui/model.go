@@ -63,6 +63,9 @@ type Model struct {
 	detailOffset int // first visible line in the detail box
 	detailH      int // visible height of the detail box
 
+	resultOffset int // first visible line in the review-result view
+	resultH      int // visible height of the result pane
+
 	termW int // last reported terminal width
 	termH int // last reported terminal height
 

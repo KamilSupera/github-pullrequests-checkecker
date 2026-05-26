@@ -31,6 +31,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.commentsH = ch
 		m.detailH = detailH
+		m.resultH = paneH
 		m = m.scrollListIntoView()
 		return m, nil
 
@@ -119,6 +120,70 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.diffVP, cmd = m.diffVP.Update(msg)
 		return m, cmd
+	}
+
+	// When the review-result pane is on screen for the current PR,
+	// j/k scroll it; Enter re-reviews; Esc dismisses.
+	if m.inResultView() {
+		switch key {
+		case "esc":
+			m.lastReview = nil
+			m.steps = nil
+			m.resultOffset = 0
+			return m, nil
+		case "q", "ctrl+c":
+			m.cancel()
+			return m, tea.Quit
+		case "j", "down":
+			m.resultOffset++
+			m = m.clampResultOffset()
+			return m, nil
+		case "k", "up":
+			m.resultOffset--
+			if m.resultOffset < 0 {
+				m.resultOffset = 0
+			}
+			return m, nil
+		case "J", "pgdown":
+			m.resultOffset += m.resultH - 1
+			m = m.clampResultOffset()
+			return m, nil
+		case "K", "pgup":
+			m.resultOffset -= m.resultH - 1
+			if m.resultOffset < 0 {
+				m.resultOffset = 0
+			}
+			return m, nil
+		case "g", "home":
+			m.resultOffset = 0
+			return m, nil
+		case "G", "end":
+			m.resultOffset = 1 << 20
+			m = m.clampResultOffset()
+			return m, nil
+		case "o":
+			pr, ok := m.currentPR()
+			if !ok {
+				return m, nil
+			}
+			_ = m.openURL(pr.URL)
+			return m, nil
+		case "enter":
+			// fall through to the standard enter handler below by clearing
+			// the lastReview so re-review is initiated.
+			pr, ok := m.currentPR()
+			if !ok {
+				return m, nil
+			}
+			ctx, cancel := context.WithCancel(m.ctx)
+			m.pipeCancel = cancel
+			m.running = true
+			m.steps = nil
+			m.lastReview = nil
+			m.resultOffset = 0
+			return m, m.runPipeline(ctx, pr.URL)
+		}
+		return m, nil
 	}
 
 	switch key {
@@ -267,6 +332,41 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// inResultView reports whether the right column is currently showing
+// the review-result panel for the highlighted PR.
+func (m Model) inResultView() bool {
+	if m.viewingDiff || m.running || m.lastReview == nil {
+		return false
+	}
+	pr, ok := m.currentPR()
+	return ok && pr.URL == m.lastReview.url
+}
+
+// clampResultOffset keeps m.resultOffset within [0, totalLines-visible].
+func (m Model) clampResultOffset() Model {
+	if m.lastReview == nil {
+		m.resultOffset = 0
+		return m
+	}
+	full := m.renderReviewResult()
+	total := strings.Count(full, "\n") + 1
+	visible := m.resultH - 1
+	if visible < 1 {
+		visible = 1
+	}
+	max := total - visible
+	if max < 0 {
+		max = 0
+	}
+	if m.resultOffset > max {
+		m.resultOffset = max
+	}
+	if m.resultOffset < 0 {
+		m.resultOffset = 0
+	}
+	return m
 }
 
 // clampDetailOffset keeps m.detailOffset within [0, totalLines-visible].
