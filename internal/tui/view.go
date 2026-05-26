@@ -280,6 +280,9 @@ func (m Model) listLines() (lines []string, cursorLine int) {
 			if isNew {
 				marker = newDot
 			}
+			if m.bookmarks != nil && m.bookmarks.Has(pr.URL) {
+				marker = lipgloss.NewStyle().Foreground(colYellow).Render("★")
+			}
 			var prefix, num, title string
 			if active {
 				prefix = cursorStyle.Render("❯ ")

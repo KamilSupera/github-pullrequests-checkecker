@@ -93,7 +93,8 @@ type Model struct {
 	filtering bool   // is the filter input active
 	filter    string // current filter substring (case-insensitive)
 
-	seen *cache.SeenStore
+	seen      *cache.SeenStore
+	bookmarks *cache.BookmarkStore
 
 	termW int // last reported terminal width
 	termH int // last reported terminal height
@@ -128,7 +129,8 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, qr quickRev
 		openURL:     open,
 		prsByTab: prsByTab,
 		loadErr:  map[Tab]error{},
-		seen:     cache.LoadSeen(),
+		seen:      cache.LoadSeen(),
+		bookmarks: cache.LoadBookmarks(),
 		details:       map[string]*github.PRDetail{},
 		diffs:         map[string]string{},
 		loadingDetail: map[string]bool{},

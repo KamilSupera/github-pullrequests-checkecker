@@ -371,6 +371,20 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.statusMsg = "approving..."
 		return m, m.quickReviewCmd(pr.URL, "APPROVE", "LGTM")
 
+	case "b":
+		pr, ok := m.currentPR()
+		if !ok || m.bookmarks == nil {
+			return m, nil
+		}
+		on := m.bookmarks.Toggle(pr.URL)
+		m.bookmarks.Save()
+		if on {
+			m.statusMsg = "bookmarked"
+		} else {
+			m.statusMsg = "removed bookmark"
+		}
+		return m, nil
+
 	case "c":
 		pr, ok := m.currentPR()
 		if !ok {
