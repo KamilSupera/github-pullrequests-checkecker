@@ -107,9 +107,21 @@ func (m Model) View() string {
 		MaxHeight(paneH + 2)
 
 	header := m.renderTabs()
-	left := m.renderList()
-	right := m.renderRightSplit(paneW, paneH)
-	body := lipgloss.JoinHorizontal(lipgloss.Top, leftPane.Render(left), right)
+	var body string
+	if m.viewingStats {
+		fullW := paneW*2 + 4 // left + right + borders
+		statsPane := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(borderActiveColor).
+			Width(fullW - 2).
+			Height(paneH).
+			MaxHeight(paneH + 2)
+		body = statsPane.Render(m.statsVP.View())
+	} else {
+		left := m.renderList()
+		right := m.renderRightSplit(paneW, paneH)
+		body = lipgloss.JoinHorizontal(lipgloss.Top, leftPane.Render(left), right)
+	}
 
 	footer := m.renderFooter()
 	if m.statusMsg != "" {

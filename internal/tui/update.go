@@ -24,6 +24,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.diffVP.Height = paneH
 		m.checksVP.Width = paneW
 		m.checksVP.Height = paneH
+		m.statsVP.Width = paneW * 2
+		m.statsVP.Height = paneH
 		m.listH = paneH
 		// Detail box gets ~60% of the right column; the rest is comments.
 		detailH := paneH * 6 / 10
@@ -199,6 +201,20 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		var cmd tea.Cmd
 		m.checksVP, cmd = m.checksVP.Update(msg)
+		return m, cmd
+	}
+
+	if m.viewingStats {
+		switch key {
+		case "s", "esc":
+			m.viewingStats = false
+			return m, nil
+		case "q", "ctrl+c":
+			m.cancel()
+			return m, tea.Quit
+		}
+		var cmd tea.Cmd
+		m.statsVP, cmd = m.statsVP.Update(msg)
 		return m, cmd
 	}
 
@@ -380,6 +396,13 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.statusMsg = "approving..."
 		return m, m.quickReviewCmd(pr.URL, "APPROVE", "LGTM")
+
+	case "s":
+		m.viewingStats = true
+		paneW, _ := paneInnerSize(m.termW, m.termH)
+		m.statsVP.SetContent(renderStats(m, paneW))
+		m.statsVP.GotoTop()
+		return m, nil
 
 	case "b":
 		pr, ok := m.currentPR()

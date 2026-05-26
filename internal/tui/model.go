@@ -78,6 +78,9 @@ type Model struct {
 	checksVP      viewport.Model
 	checks        map[string]string
 
+	viewingStats bool
+	statsVP      viewport.Model
+
 	listH      int // visible height of the PR list pane
 	listOffset int // index of first visible line in renderList
 
@@ -137,6 +140,7 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, qr quickRev
 		loadingDiff:   map[string]bool{},
 		diffVP:   viewport.New(80, 20),
 		checksVP: viewport.New(80, 20),
+		statsVP:  viewport.New(80, 20),
 		checks:   map[string]string{},
 		listH:    20,
 		termW:    80,
