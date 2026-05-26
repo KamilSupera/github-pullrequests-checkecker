@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -118,6 +119,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.running = false
 		m.pipeCancel = nil
 		m.lastReview = &msg
+		if msg.err == nil && msg.reviewID != 0 {
+			cache.AppendHistory(cache.HistoryEntry{
+				When:     time.Now(),
+				PRURL:    msg.url,
+				ReviewID: msg.reviewID,
+				Summary:  msg.summary,
+				Comments: len(msg.comments),
+			})
+		}
 		return m, nil
 
 	}
