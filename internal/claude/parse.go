@@ -16,11 +16,23 @@ type ReviewComment struct {
 
 type Review struct {
 	Summary  string          `json:"summary"`
+	Aspects  []Aspect        `json:"aspects"`
 	Comments []ReviewComment `json:"comments"`
+}
+
+// Aspect is one review dimension Claude checked.
+type Aspect struct {
+	Name   string `json:"name"`
+	Status string `json:"status"` // "ok" | "issue" | "missing" | "n/a"
+	Note   string `json:"note"`
 }
 
 var validSeverity = map[string]bool{
 	"blocker": true, "major": true, "minor": true, "nit": true,
+}
+
+var validAspectStatus = map[string]bool{
+	"ok": true, "issue": true, "missing": true, "n/a": true,
 }
 
 // ParseReview parses Claude's JSON output. Tolerates leading/trailing
@@ -38,6 +50,14 @@ func ParseReview(raw []byte) (*Review, error) {
 
 	if strings.TrimSpace(r.Summary) == "" {
 		return nil, fmt.Errorf("review summary missing or empty")
+	}
+	for i, a := range r.Aspects {
+		if a.Name == "" {
+			return nil, fmt.Errorf("aspects[%d] missing name", i)
+		}
+		if !validAspectStatus[a.Status] {
+			return nil, fmt.Errorf("aspects[%d] invalid status %q", i, a.Status)
+		}
 	}
 	for i, c := range r.Comments {
 		if c.Path == "" || c.Body == "" {

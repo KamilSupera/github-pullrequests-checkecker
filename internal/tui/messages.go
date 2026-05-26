@@ -3,6 +3,7 @@ package tui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/ksupera/prcheck/internal/claude"
 	"github.com/ksupera/prcheck/internal/github"
 	"github.com/ksupera/prcheck/internal/pipeline"
 )
@@ -32,6 +33,7 @@ type reviewDoneMsg struct {
 	url      string
 	reviewID int64
 	summary  string
+	aspects  []claude.Aspect
 	comments []github.ReviewComment
 	err      error
 }

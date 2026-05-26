@@ -334,6 +334,7 @@ func (m Model) runPipeline(ctx context.Context, prURL string) tea.Cmd {
 		if res != nil {
 			msg.reviewID = res.ID
 			msg.summary = res.Summary
+			msg.aspects = res.Aspects
 			msg.comments = res.Comments
 		}
 		return msg

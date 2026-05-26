@@ -18,10 +18,11 @@ import (
 var ErrEmptyDiff = errors.New("no diff returned for PR")
 
 // Result is what Run produces on success: the GitHub review ID plus
-// the summary and inline comments the TUI can display.
+// the summary, aspect checklist, and inline comments the TUI displays.
 type Result struct {
 	ID       int64
 	Summary  string
+	Aspects  []claude.Aspect
 	Comments []github.ReviewComment
 }
 
@@ -179,7 +180,7 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (*Result, 
 				nil)
 			if err2 == nil {
 				emit(Event{Step: "post", Status: "done", Note: fmt.Sprintf("review #%d posted (summary only)", id2)})
-				return &Result{ID: id2, Summary: review.Summary, Comments: nil}, nil
+				return &Result{ID: id2, Summary: review.Summary, Aspects: review.Aspects, Comments: nil}, nil
 			}
 			dumpFailedReview(prURL, review.Summary, ghComments)
 			return nil, err2
@@ -188,7 +189,7 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (*Result, 
 		return nil, err
 	}
 	emit(Event{Step: "post", Status: "done", Note: fmt.Sprintf("review #%d posted as PENDING", id)})
-	return &Result{ID: id, Summary: review.Summary, Comments: ghComments}, nil
+	return &Result{ID: id, Summary: review.Summary, Aspects: review.Aspects, Comments: ghComments}, nil
 }
 
 // summarizeDiff counts the number of files touched and added/removed

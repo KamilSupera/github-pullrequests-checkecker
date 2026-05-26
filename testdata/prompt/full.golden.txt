@@ -16,17 +16,32 @@ Diff:
 diff --git a/foo.go b/foo.go
 +func cached() {}
 
-Only include comments at severity "blocker" or "major".
-Do NOT include nit, minor, style, or formatting suggestions.
+Review the diff across these aspects (report each in "aspects" below):
+- correctness        — logic bugs, edge cases, off-by-ones, nil handling
+- performance        — algorithmic complexity, allocations, hot-path cost
+- security           — input validation, secrets, injection, auth
+- error_handling     — error wrapping, propagation, recovery
+- tests              — coverage of new behavior, test quality
+- complexity         — readability, dead code, unnecessary abstraction
+- requirements_match — does the diff implement the Jira issue (when present)
+
+Only include "comments" at severity "blocker" or "major". Do NOT
+include nit, minor, style, or formatting suggestions.
 
 Each "body" must be plain prose. Do NOT prefix it with severity tags
 like "[blocker]" or "**MAJOR**:", emoji or icons (🔴 ⚠️ ✗ etc.), or
-line markers like "L28:". The severity goes in the "severity" field
-and the line goes in the "line" field — keep them out of the body.
+line markers like "L28:".
 
 Return ONLY JSON matching this schema (no prose before or after):
 {
   "summary": "string (overall review summary, 2-5 sentences)",
+  "aspects": [
+    {
+      "name": "correctness | performance | security | error_handling | tests | complexity | requirements_match",
+      "status": "ok" | "issue" | "missing" | "n/a",
+      "note": "one-line explanation (required unless status=ok)"
+    }
+  ],
   "comments": [
     {
       "path": "file path from diff",

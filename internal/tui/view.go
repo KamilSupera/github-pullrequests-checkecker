@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/ksupera/prcheck/internal/claude"
 	"github.com/ksupera/prcheck/internal/github"
 )
 
@@ -685,6 +686,14 @@ func (m Model) renderReviewResult() string {
 		b.WriteString("\n")
 	}
 
+	if len(m.lastReview.aspects) > 0 {
+		b.WriteString(repoHeader.Render("◆ Aspects checked") + "\n")
+		for _, a := range m.lastReview.aspects {
+			b.WriteString(aspectLine(a, bodyW) + "\n")
+		}
+		b.WriteString("\n")
+	}
+
 	if n := len(m.lastReview.comments); n > 0 {
 		b.WriteString(repoHeader.Render(fmt.Sprintf("◆ Inline comments (%d)", n)) + "\n")
 		for _, c := range m.lastReview.comments {
@@ -706,6 +715,34 @@ func (m Model) renderReviewResult() string {
 		keyCap.Render("Esc") + " " + hint.Render("close") + "  " +
 		keyCap.Render("j/k") + " " + hint.Render("next PR"))
 	return b.String()
+}
+
+// aspectLine renders one row of the aspects-checked checklist:
+// icon + name + optional note. Note is wrapped underneath.
+func aspectLine(a claude.Aspect, w int) string {
+	var icon, name string
+	switch a.Status {
+	case "ok":
+		icon = pass.Render("✓")
+	case "issue":
+		icon = fail.Render("✗")
+	case "missing":
+		icon = pending.Render("⚠")
+	case "n/a":
+		icon = dim.Render("·")
+	default:
+		icon = dim.Render("·")
+	}
+	name = lipgloss.NewStyle().Foreground(colFG).Render(strings.ReplaceAll(a.Name, "_", " "))
+	row := fmt.Sprintf("  %s %s", icon, name)
+	if a.Note != "" && a.Status != "ok" {
+		row += "\n"
+		for _, line := range wrap(a.Note, w-4) {
+			row += "    " + dim.Render(line) + "\n"
+		}
+		row = strings.TrimRight(row, "\n")
+	}
+	return row
 }
 
 func severityBadge(sev string) string {
