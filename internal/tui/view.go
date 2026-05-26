@@ -306,7 +306,13 @@ func groupByRepo(prs []github.PR) []repoGroup {
 // boxes: detail on top, comments below. Total height equals paneH+2
 // so it matches the left pane's outer height.
 func (m Model) renderRightSplit(paneW, paneH int) string {
-	if m.viewingDiff || m.running || m.lastReview != nil {
+	useFull := m.viewingDiff || m.running
+	if !useFull && m.lastReview != nil {
+		if pr, ok := m.currentPR(); ok && pr.URL == m.lastReview.url {
+			useFull = true
+		}
+	}
+	if useFull {
 		fullPane := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(borderActiveColor).
@@ -421,7 +427,11 @@ func (m Model) renderRight() string {
 		return m.renderProgress()
 	}
 	if m.lastReview != nil {
-		return m.renderReviewResult()
+		// Show the result only while the cursor is still on the PR
+		// it belongs to; moving the cursor reverts to detail view.
+		if pr, ok := m.currentPR(); ok && pr.URL == m.lastReview.url {
+			return m.renderReviewResult()
+		}
 	}
 	return m.renderDetail()
 }
@@ -692,6 +702,8 @@ func (m Model) renderReviewResult() string {
 	}
 
 	b.WriteString("\n" + keyCap.Render("o") + " " + hint.Render("open in browser") + "  " +
+		keyCap.Render("⏎") + " " + hint.Render("re-review") + "  " +
+		keyCap.Render("Esc") + " " + hint.Render("close") + "  " +
 		keyCap.Render("j/k") + " " + hint.Render("next PR"))
 	return b.String()
 }

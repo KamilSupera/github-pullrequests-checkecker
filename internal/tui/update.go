@@ -166,6 +166,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m = m.scrollListIntoView()
 		return m, nil
 
+	case "esc":
+		// Dismiss the review-result view, return to normal detail/list.
+		m.lastReview = nil
+		m.steps = nil
+		return m, nil
+
 	case " ", "space":
 		pr, ok := m.currentPR()
 		if !ok {
