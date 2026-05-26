@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -266,26 +267,46 @@ func (m Model) listLines() (lines []string, cursorLine int) {
 	groups := groupByRepo(prs)
 	idx := 0
 	cursorStyle := lipgloss.NewStyle().Foreground(colMauve).Bold(true)
+	newDot := lipgloss.NewStyle().Foreground(colPeach).Bold(true).Render("•")
 	for _, g := range groups {
 		lines = append(lines, repoHeader.Render("● "+truncate(g.name, paneW-4)))
 		for _, pr := range g.prs {
 			active := idx == m.cursor
+			isNew := m.isPRNew(pr)
+			marker := " "
+			if isNew {
+				marker = newDot
+			}
 			var prefix, num, title string
 			if active {
 				prefix = cursorStyle.Render("❯ ")
 				num = prNumStyle.Render(fmt.Sprintf("#%d", pr.Number))
-				title = prTitle.Bold(true).Render(truncate(pr.Title, titleW))
+				title = prTitle.Bold(true).Render(truncate(pr.Title, titleW-2))
 				cursorLine = len(lines)
+			} else if isNew {
+				prefix = "  "
+				num = lipgloss.NewStyle().Foreground(colFG).Render(fmt.Sprintf("#%d", pr.Number))
+				title = lipgloss.NewStyle().Foreground(colFG).Render(truncate(pr.Title, titleW-2))
 			} else {
 				prefix = "  "
 				num = dim.Render(fmt.Sprintf("#%d", pr.Number))
-				title = dim.Render(truncate(pr.Title, titleW))
+				title = dim.Render(truncate(pr.Title, titleW-2))
 			}
-			lines = append(lines, fmt.Sprintf("%s%s %s", prefix, num, title))
+			lines = append(lines, fmt.Sprintf("%s%s%s %s", prefix, marker, num, title))
 			idx++
 		}
 	}
 	return
+}
+
+// isPRNew reports whether the PR has updates since the user last
+// loaded its detail. Unseen PRs are also reported as new.
+func (m Model) isPRNew(pr github.PR) bool {
+	if m.seen == nil {
+		return false
+	}
+	t, _ := time.Parse(time.RFC3339, pr.UpdatedAt)
+	return m.seen.IsNew(pr.URL, t)
 }
 
 type repoGroup struct {

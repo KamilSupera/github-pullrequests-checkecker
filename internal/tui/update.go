@@ -298,6 +298,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if !ok {
 			return m, nil
 		}
+		if m.seen != nil {
+			m.seen.Mark(pr.URL)
+			m.seen.Save()
+		}
 		if _, cached := m.details[pr.URL]; cached {
 			return m, nil
 		}
