@@ -148,10 +148,10 @@ func (m Model) renderFooter() string {
 	} else {
 		items = []kh{
 			{"j/k", "move"},
-			{"[ ]", "detail"},
-			{"J/K", "comments"},
+			{"/", "filter"},
 			{"Space", "load"},
 			{"d", "diff"},
+			{"c", "checks"},
 			{"⏎", "review"},
 			{"Tab", "tab"},
 			{"o", "open"},
@@ -347,7 +347,7 @@ func groupByRepo(prs []github.PR) []repoGroup {
 // boxes: detail on top, comments below. Total height equals paneH+2
 // so it matches the left pane's outer height.
 func (m Model) renderRightSplit(paneW, paneH int) string {
-	useFull := m.viewingDiff || m.running
+	useFull := m.viewingDiff || m.viewingChecks || m.running
 	if !useFull && m.lastReview != nil {
 		if pr, ok := m.currentPR(); ok && pr.URL == m.lastReview.url {
 			useFull = true
@@ -469,6 +469,9 @@ func clipToWidth(s string, w int) string {
 func (m Model) renderRight() string {
 	if m.viewingDiff {
 		return m.diffVP.View()
+	}
+	if m.viewingChecks {
+		return m.checksVP.View()
 	}
 	if m.running {
 		return m.renderProgress()

@@ -36,6 +36,7 @@ type stepRec struct {
 type loaderFn func(ctx context.Context, q github.Query) ([]github.PR, error)
 type detailFn func(ctx context.Context, url string) (*github.PRDetail, error)
 type diffFn func(ctx context.Context, url string) (string, error)
+type checksFn func(ctx context.Context, url string) (string, error)
 type runPipelineFn func(ctx context.Context, prURL string, emit func(pipeline.Event)) (*pipeline.Result, error)
 type openFn func(url string) error
 
@@ -47,6 +48,7 @@ type Model struct {
 	loader   loaderFn
 	detailFn detailFn
 	diffFn   diffFn
+	checksFn checksFn
 	runPipe  runPipelineFn
 	openURL  openFn
 
@@ -67,6 +69,10 @@ type Model struct {
 
 	viewingDiff bool
 	diffVP      viewport.Model
+
+	viewingChecks bool
+	checksVP      viewport.Model
+	checks        map[string]string
 
 	listH      int // visible height of the PR list pane
 	listOffset int // index of first visible line in renderList
@@ -92,7 +98,7 @@ type Model struct {
 	err     error
 }
 
-func NewModel(loader loaderFn, df detailFn, dfn diffFn, rp runPipelineFn, open openFn) Model {
+func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, rp runPipelineFn, open openFn) Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.MiniDot
 	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffb000"))
@@ -112,6 +118,7 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, rp runPipelineFn, open o
 		loader:   loader,
 		detailFn: df,
 		diffFn:   dfn,
+		checksFn: cf,
 		runPipe:  rp,
 		openURL:  open,
 		prsByTab: prsByTab,
@@ -122,6 +129,8 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, rp runPipelineFn, open o
 		loadingDetail: map[string]bool{},
 		loadingDiff:   map[string]bool{},
 		diffVP:   viewport.New(80, 20),
+		checksVP: viewport.New(80, 20),
+		checks:   map[string]string{},
 		listH:    20,
 		termW:    80,
 		termH:    24,

@@ -44,6 +44,12 @@ type diffLoadedMsg struct {
 	err  error
 }
 
+type checksLoadedMsg struct {
+	url    string
+	checks string
+	err    error
+}
+
 type Tab int
 
 const (

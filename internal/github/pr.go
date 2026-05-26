@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 type Query int
@@ -209,6 +210,22 @@ func FetchDiff(ctx context.Context, url string) (string, error) {
 		return "", err
 	}
 	return string(out), nil
+}
+
+// FetchChecks returns the formatted output of `gh pr checks <url>`,
+// listing every CI check on the PR with status + link. `gh pr checks`
+// exits non-zero when any check failed, but the listing is still on
+// stdout — so we keep stdout regardless of exit code.
+func FetchChecks(ctx context.Context, url string) (string, error) {
+	var stdout, stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, "gh", "pr", "checks", url)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	_ = cmd.Run()
+	if stdout.Len() == 0 {
+		return "", fmt.Errorf("gh pr checks: %s", strings.TrimSpace(stderr.String()))
+	}
+	return stdout.String(), nil
 }
 
 // CLIClient and Reviewer are thin adapters that satisfy the pipeline

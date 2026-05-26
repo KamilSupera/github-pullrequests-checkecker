@@ -20,6 +20,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		paneW, paneH := paneInnerSize(msg.Width, msg.Height)
 		m.diffVP.Width = paneW
 		m.diffVP.Height = paneH
+		m.checksVP.Width = paneW
+		m.checksVP.Height = paneH
 		m.listH = paneH
 		// Detail box gets ~60% of the right column; the rest is comments.
 		detailH := paneH * 6 / 10
@@ -48,6 +50,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.diffVP.SetContent(colored)
 				m.diffVP.GotoTop()
 			}
+		}
+		return m, nil
+
+	case checksLoadedMsg:
+		if msg.err == nil {
+			m.checks[msg.url] = msg.checks
+			if m.viewingChecks {
+				m.checksVP.SetContent(msg.checks)
+				m.checksVP.GotoTop()
+			}
+		} else if m.viewingChecks {
+			m.checksVP.SetContent(errStyle.Render("checks failed: ") + msg.err.Error())
 		}
 		return m, nil
 
@@ -152,6 +166,20 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		var cmd tea.Cmd
 		m.diffVP, cmd = m.diffVP.Update(msg)
+		return m, cmd
+	}
+
+	if m.viewingChecks {
+		switch key {
+		case "c", "esc":
+			m.viewingChecks = false
+			return m, nil
+		case "q", "ctrl+c":
+			m.cancel()
+			return m, tea.Quit
+		}
+		var cmd tea.Cmd
+		m.checksVP, cmd = m.checksVP.Update(msg)
 		return m, cmd
 	}
 
@@ -325,6 +353,20 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.loadingDiff[pr.URL] = true
 		m.diffVP.SetContent(spinnerLine(m.spinner.View(), "loading diff..."))
 		return m, tea.Batch(m.spinner.Tick, m.loadDiff(pr.URL))
+
+	case "c":
+		pr, ok := m.currentPR()
+		if !ok {
+			return m, nil
+		}
+		m.viewingChecks = true
+		if c, cached := m.checks[pr.URL]; cached {
+			m.checksVP.SetContent(c)
+			m.checksVP.GotoTop()
+			return m, nil
+		}
+		m.checksVP.SetContent(spinnerLine(m.spinner.View(), "loading checks..."))
+		return m, tea.Batch(m.spinner.Tick, m.loadChecks(pr.URL))
 
 	case "tab":
 		m.tab = (m.tab + 1) % 3
@@ -509,6 +551,13 @@ func (m Model) loadDiff(url string) tea.Cmd {
 	return func() tea.Msg {
 		d, err := m.diffFn(m.ctx, url)
 		return diffLoadedMsg{url: url, diff: d, err: err}
+	}
+}
+
+func (m Model) loadChecks(url string) tea.Cmd {
+	return func() tea.Msg {
+		c, err := m.checksFn(m.ctx, url)
+		return checksLoadedMsg{url: url, checks: c, err: err}
 	}
 }
 
