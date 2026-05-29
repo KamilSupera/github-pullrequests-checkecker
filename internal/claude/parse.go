@@ -7,11 +7,12 @@ import (
 )
 
 type ReviewComment struct {
-	Path     string `json:"path"`
-	Line     int    `json:"line"`
-	Side     string `json:"side"`
-	Body     string `json:"body"`
-	Severity string `json:"severity"`
+	Path       string `json:"path"`
+	Line       int    `json:"line"`
+	Side       string `json:"side"`
+	Body       string `json:"body"`
+	Severity   string `json:"severity"`
+	Suggestion string `json:"suggestion"`
 }
 
 type Review struct {

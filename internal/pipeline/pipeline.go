@@ -167,11 +167,12 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (*Result, 
 	ghComments := make([]github.ReviewComment, len(kept))
 	for i, c := range kept {
 		ghComments[i] = github.ReviewComment{
-			Path:     c.Path,
-			Line:     c.Line,
-			Side:     c.Side,
-			Body:     stripDecorations(c.Body),
-			Severity: c.Severity,
+			Path:       c.Path,
+			Line:       c.Line,
+			Side:       c.Side,
+			Body:       composeCommentBody(stripDecorations(c.Body), c.Suggestion),
+			Severity:   c.Severity,
+			Suggestion: strings.TrimSpace(c.Suggestion),
 		}
 	}
 	id, err := d.Post.PostPendingReview(ctx, prURL, review.Summary, ghComments)
@@ -243,6 +244,18 @@ func stripDecorations(s string) string {
 		out = strings.TrimSpace(out)
 	}
 	return out
+}
+
+// composeCommentBody combines the problem statement and the suggested
+// fix into a single Markdown body. The "Suggested fix" section is
+// omitted when the suggestion is empty.
+func composeCommentBody(body, suggestion string) string {
+	suggestion = strings.TrimSpace(suggestion)
+	body = strings.TrimSpace(body)
+	if suggestion == "" {
+		return body
+	}
+	return body + "\n\n**Suggested fix:** " + suggestion
 }
 
 // dumpFailedReview persists the review payload to /tmp so a failed POST

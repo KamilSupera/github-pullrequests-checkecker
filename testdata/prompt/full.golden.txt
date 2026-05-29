@@ -32,6 +32,12 @@ Each "body" must be plain prose. Do NOT prefix it with severity tags
 like "[blocker]" or "**MAJOR**:", emoji or icons (🔴 ⚠️ ✗ etc.), or
 line markers like "L28:".
 
+Every comment MUST include a "suggestion" — a concrete fix proposal
+(1-3 sentences or a short code snippet in fenced backticks). The
+suggestion explains WHAT to change, not just that something is wrong.
+If you genuinely cannot propose a fix, set "suggestion" to a short
+explanation of what investigation is needed.
+
 Return ONLY JSON matching this schema (no prose before or after):
 {
   "summary": "string (overall review summary, 2-5 sentences)",
@@ -47,8 +53,9 @@ Return ONLY JSON matching this schema (no prose before or after):
       "path": "file path from diff",
       "line": <int, line number in NEW file>,
       "side": "RIGHT" | "LEFT",
-      "body": "review comment",
-      "severity": "blocker" | "major"
+      "body": "review comment (the problem)",
+      "severity": "blocker" | "major",
+      "suggestion": "concrete fix proposal (1-3 sentences or short code)"
     }
   ]
 }

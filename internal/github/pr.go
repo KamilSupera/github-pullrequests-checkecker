@@ -52,6 +52,7 @@ type PR struct {
 	HeadRefName string `json:"headRefName"`
 	BaseRefName string `json:"baseRefName"`
 	UpdatedAt   string `json:"updatedAt"`
+	CreatedAt   string `json:"createdAt"`
 	Repo        string // populated from RepositoryRaw.NameWithOwner
 
 	AuthorRaw struct {
@@ -146,7 +147,7 @@ func SearchPRs(ctx context.Context, q Query) ([]PR, error) {
 	args := []string{"search", "prs"}
 	args = append(args, q.searchFlags()...)
 	args = append(args,
-		"--json", "number,title,url,author,repository,updatedAt",
+		"--json", "number,title,url,author,repository,updatedAt,createdAt",
 		"--limit", "50",
 	)
 	out, err := runGH(ctx, args...)

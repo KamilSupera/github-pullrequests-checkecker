@@ -275,7 +275,7 @@ func (m Model) renderList() string {
 // and returns the display-line index of the cursor.
 func (m Model) listLines() (lines []string, cursorLine int) {
 	paneW, _ := paneInnerSize(m.termW, m.termH)
-	titleW := paneW - 10
+	titleW := paneW - 17
 	if titleW < 10 {
 		titleW = 10
 	}
@@ -296,26 +296,44 @@ func (m Model) listLines() (lines []string, cursorLine int) {
 			if m.bookmarks != nil && m.bookmarks.Has(pr.URL) {
 				marker = lipgloss.NewStyle().Foreground(colYellow).Render("★")
 			}
-			var prefix, num, title string
+			dateStr := fmtPRDate(pr.CreatedAt)
+			var prefix, date, num, title string
 			if active {
 				prefix = cursorStyle.Render("❯ ")
+				date = lipgloss.NewStyle().Foreground(colSubtext).Render(dateStr)
 				num = prNumStyle.Render(fmt.Sprintf("#%d", pr.Number))
 				title = prTitle.Bold(true).Render(truncate(pr.Title, titleW-2))
 				cursorLine = len(lines)
 			} else if isNew {
 				prefix = "  "
+				date = lipgloss.NewStyle().Foreground(colSubtext).Render(dateStr)
 				num = lipgloss.NewStyle().Foreground(colFG).Render(fmt.Sprintf("#%d", pr.Number))
 				title = lipgloss.NewStyle().Foreground(colFG).Render(truncate(pr.Title, titleW-2))
 			} else {
 				prefix = "  "
+				date = dim.Render(dateStr)
 				num = dim.Render(fmt.Sprintf("#%d", pr.Number))
 				title = dim.Render(truncate(pr.Title, titleW-2))
 			}
-			lines = append(lines, fmt.Sprintf("%s%s%s %s", prefix, marker, num, title))
+			lines = append(lines, fmt.Sprintf("%s%s%s %s %s", prefix, marker, date, num, title))
 			idx++
 		}
 	}
 	return
+}
+
+// fmtPRDate parses an RFC3339 timestamp and returns a fixed-width
+// "02 Jan" (6 chars). Empty input or parse failure returns 6 spaces so
+// list columns stay aligned.
+func fmtPRDate(s string) string {
+	if s == "" {
+		return "      "
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return "      "
+	}
+	return t.Format("02 Jan")
 }
 
 // isPRNew reports whether the PR has updates since the user last
@@ -949,16 +967,29 @@ func (m Model) renderReviewResult() string {
 
 	if n := len(m.lastReview.comments); n > 0 {
 		b.WriteString(repoHeader.Render(fmt.Sprintf("◆ Inline comments (%d)", n)) + "\n")
+		suggestLabel := lipgloss.NewStyle().Foreground(colTeal).Bold(true).Render("↳ fix:")
 		for _, c := range m.lastReview.comments {
 			loc := lipgloss.NewStyle().Foreground(colPink).Render(fmt.Sprintf("%s:%d", c.Path, c.Line))
 			sev := severityBadge(c.Severity)
 			b.WriteString(sev + " " + loc + "\n")
-			// Body may already include the "[severity] " prefix added in
-			// the pipeline; strip it for the display since we render the
-			// severity badge separately.
 			body := strings.TrimPrefix(c.Body, "["+c.Severity+"] ")
+			// Pipeline appends "**Suggested fix:** ..." to Body when the
+			// suggestion field is non-empty. Strip it so we render the
+			// suggestion with its own label/color below.
+			if c.Suggestion != "" {
+				body = strings.TrimSpace(strings.TrimSuffix(body, "**Suggested fix:** "+c.Suggestion))
+			}
 			for _, line := range wrap(body, bodyW) {
 				b.WriteString("  " + line + "\n")
+			}
+			if s := strings.TrimSpace(c.Suggestion); s != "" {
+				for i, line := range wrap(s, bodyW-2) {
+					if i == 0 {
+						b.WriteString("  " + suggestLabel + " " + line + "\n")
+					} else {
+						b.WriteString("        " + line + "\n")
+					}
+				}
 			}
 		}
 	}

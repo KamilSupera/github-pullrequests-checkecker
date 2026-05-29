@@ -11,11 +11,12 @@ import (
 )
 
 type ReviewComment struct {
-	Path     string `json:"path"`
-	Line     int    `json:"line"`
-	Side     string `json:"side"` // "LEFT" or "RIGHT"
-	Body     string `json:"body"`
-	Severity string `json:"-"` // internal only, never sent to GitHub
+	Path       string `json:"path"`
+	Line       int    `json:"line"`
+	Side       string `json:"side"` // "LEFT" or "RIGHT"
+	Body       string `json:"body"`
+	Severity   string `json:"-"` // internal only, never sent to GitHub
+	Suggestion string `json:"-"` // internal only; appended to Body on post
 }
 
 type apiBody struct {
