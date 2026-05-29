@@ -1,4 +1,4 @@
-module github.com/ksupera/prcheck
+module github.com/KamilSupera/github-pullrequests-checkecker
 
 go 1.26.3
 

@@ -10,14 +10,27 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/ksupera/prcheck/internal/claude"
-	"github.com/ksupera/prcheck/internal/config"
-	"github.com/ksupera/prcheck/internal/github"
-	"github.com/ksupera/prcheck/internal/pipeline"
-	"github.com/ksupera/prcheck/internal/tui"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/claude"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/config"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/github"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/pipeline"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/tui"
+)
+
+// Set via -ldflags at release time by GoReleaser.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 func main() {
+	for _, a := range os.Args[1:] {
+		if a == "--version" || a == "-v" || a == "version" {
+			fmt.Printf("prcheck %s (commit %s, built %s)\n", version, commit, date)
+			return
+		}
+	}
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "prcheck:", err)
 		os.Exit(1)

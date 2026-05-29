@@ -9,8 +9,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"github.com/ksupera/prcheck/internal/github"
-	"github.com/ksupera/prcheck/internal/pipeline"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/github"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/pipeline"
 )
 
 func TestModel_ShowsMineTab(t *testing.T) {

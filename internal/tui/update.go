@@ -10,8 +10,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/ksupera/prcheck/internal/cache"
-	"github.com/ksupera/prcheck/internal/pipeline"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/cache"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/pipeline"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

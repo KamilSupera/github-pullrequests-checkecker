@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ksupera/prcheck/internal/claude"
-	"github.com/ksupera/prcheck/internal/github"
-	"github.com/ksupera/prcheck/internal/jira"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/claude"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/github"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/jira"
 )
 
 var ErrEmptyDiff = errors.New("no diff returned for PR")
@@ -228,9 +228,9 @@ func truncateStr(s string, n int) string {
 // "**MAJOR**: ...", "⚠️ L28: ..."). We want clean prose; severity is
 // tracked separately and the line is implicit from the comment anchor.
 var (
-	reSevPrefix  = regexp.MustCompile(`(?i)^\s*[\[(*]+\s*(blocker|major|minor|nit|warning|error|fixme|todo)\s*[\])*:]+\s*`)
+	reSevPrefix    = regexp.MustCompile(`(?i)^\s*[\[(*]+\s*(blocker|major|minor|nit|warning|error|fixme|todo)\s*[\])*:]+\s*`)
 	reLeadingEmoji = regexp.MustCompile(`^\s*[\p{So}\p{Sk}\p{Sm}\p{M}\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE00}-\x{FE0F}\x{200D}]+\s*`)
-	reLPrefix    = regexp.MustCompile(`(?i)^\s*L\d+\s*[:\-]?\s*`)
+	reLPrefix      = regexp.MustCompile(`(?i)^\s*L\d+\s*[:\-]?\s*`)
 )
 
 func stripDecorations(s string) string {

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ksupera/prcheck/internal/github"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/github"
 )
 
 // Snapshot is one tab's cached state.

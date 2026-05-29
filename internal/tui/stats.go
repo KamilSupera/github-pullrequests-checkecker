@@ -8,8 +8,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/ksupera/prcheck/internal/cache"
-	"github.com/ksupera/prcheck/internal/github"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/cache"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/github"
 )
 
 // renderStats computes a textual stats dashboard from cached state.

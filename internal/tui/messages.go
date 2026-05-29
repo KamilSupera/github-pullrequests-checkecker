@@ -3,9 +3,9 @@ package tui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/ksupera/prcheck/internal/claude"
-	"github.com/ksupera/prcheck/internal/github"
-	"github.com/ksupera/prcheck/internal/pipeline"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/claude"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/github"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/pipeline"
 )
 
 // Messages flow from goroutines into the Bubble Tea Update function.

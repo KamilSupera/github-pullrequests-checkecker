@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ksupera/prcheck/internal/claude"
-	"github.com/ksupera/prcheck/internal/github"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/claude"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/github"
 )
 
 // Fakes implementing the Deps interface.

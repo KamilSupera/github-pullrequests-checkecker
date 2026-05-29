@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/ksupera/prcheck/internal/github"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/github"
 )
 
 // DetectChanges compares an old snapshot to a fresh PR list and

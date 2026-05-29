@@ -9,9 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/ksupera/prcheck/internal/cache"
-	"github.com/ksupera/prcheck/internal/github"
-	"github.com/ksupera/prcheck/internal/pipeline"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/cache"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/github"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/pipeline"
 )
 
 func tabCacheKey(t Tab) string {
@@ -121,31 +121,31 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, qr quickRev
 		}
 	}
 	return Model{
-		ctx:      ctx,
-		cancel:   cancel,
-		loader:      loader,
-		detailFn:    df,
-		diffFn:      dfn,
-		checksFn:    cf,
-		quickReview: qr,
-		runPipe:     rp,
-		openURL:     open,
-		prsByTab: prsByTab,
-		loadErr:  map[Tab]error{},
-		seen:      cache.LoadSeen(),
-		bookmarks: cache.LoadBookmarks(),
+		ctx:           ctx,
+		cancel:        cancel,
+		loader:        loader,
+		detailFn:      df,
+		diffFn:        dfn,
+		checksFn:      cf,
+		quickReview:   qr,
+		runPipe:       rp,
+		openURL:       open,
+		prsByTab:      prsByTab,
+		loadErr:       map[Tab]error{},
+		seen:          cache.LoadSeen(),
+		bookmarks:     cache.LoadBookmarks(),
 		details:       map[string]*github.PRDetail{},
 		diffs:         map[string]string{},
 		loadingDetail: map[string]bool{},
 		loadingDiff:   map[string]bool{},
-		diffVP:   viewport.New(80, 20),
-		checksVP: viewport.New(80, 20),
-		statsVP:  viewport.New(80, 20),
-		checks:   map[string]string{},
-		listH:    20,
-		termW:    80,
-		termH:    24,
-		spinner:  sp,
+		diffVP:        viewport.New(80, 20),
+		checksVP:      viewport.New(80, 20),
+		statsVP:       viewport.New(80, 20),
+		checks:        map[string]string{},
+		listH:         20,
+		termW:         80,
+		termH:         24,
+		spinner:       sp,
 	}
 }
 

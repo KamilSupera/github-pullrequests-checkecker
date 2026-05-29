@@ -71,23 +71,23 @@ type Check struct {
 
 type PRDetail struct {
 	PR
-	Body            string          `json:"body"`
-	Checks          []Check         `json:"statusCheckRollup"`
-	Comments        []Comment       `json:"comments"`
-	Reviews         []Review        `json:"reviews"`
-	State           string          `json:"state"`     // OPEN, CLOSED, MERGED
-	IsDraft         bool            `json:"isDraft"`
-	ReviewDecision  string          `json:"reviewDecision"` // APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED, ""
-	MergeStateStatus string         `json:"mergeStateStatus"`
-	Mergeable       string          `json:"mergeable"` // MERGEABLE, CONFLICTING, UNKNOWN
-	Labels          []Label         `json:"labels"`
-	Assignees       []User          `json:"assignees"`
-	ReviewRequests  []User          `json:"reviewRequests"`
-	UpdatedAt       string          `json:"updatedAt"`
-	ChangedFiles    int             `json:"changedFiles"`
-	Additions       int             `json:"additions"`
-	Deletions       int             `json:"deletions"`
-	Inline          []InlineComment `json:"-"`
+	Body             string          `json:"body"`
+	Checks           []Check         `json:"statusCheckRollup"`
+	Comments         []Comment       `json:"comments"`
+	Reviews          []Review        `json:"reviews"`
+	State            string          `json:"state"` // OPEN, CLOSED, MERGED
+	IsDraft          bool            `json:"isDraft"`
+	ReviewDecision   string          `json:"reviewDecision"` // APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED, ""
+	MergeStateStatus string          `json:"mergeStateStatus"`
+	Mergeable        string          `json:"mergeable"` // MERGEABLE, CONFLICTING, UNKNOWN
+	Labels           []Label         `json:"labels"`
+	Assignees        []User          `json:"assignees"`
+	ReviewRequests   []User          `json:"reviewRequests"`
+	UpdatedAt        string          `json:"updatedAt"`
+	ChangedFiles     int             `json:"changedFiles"`
+	Additions        int             `json:"additions"`
+	Deletions        int             `json:"deletions"`
+	Inline           []InlineComment `json:"-"`
 }
 
 type Label struct {
@@ -113,8 +113,8 @@ type Review struct {
 	AuthorRaw struct {
 		Login string `json:"login"`
 	} `json:"author"`
-	Body      string `json:"body"`
-	State     string `json:"state"` // APPROVED, CHANGES_REQUESTED, COMMENTED, PENDING
+	Body        string `json:"body"`
+	State       string `json:"state"` // APPROVED, CHANGES_REQUESTED, COMMENTED, PENDING
 	SubmittedAt string `json:"submittedAt"`
 }
 

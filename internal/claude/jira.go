@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/ksupera/prcheck/internal/jira"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/jira"
 )
 
 const jiraPromptTemplate = `Use Atlassian MCP tools to fetch Jira issue %s.

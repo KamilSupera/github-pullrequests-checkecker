@@ -9,8 +9,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/ksupera/prcheck/internal/claude"
-	"github.com/ksupera/prcheck/internal/github"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/claude"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/github"
 )
 
 var (
@@ -44,17 +44,17 @@ var (
 	tabInactive = lipgloss.NewStyle().
 			Foreground(colSubtext).
 			Padding(0, 1)
-	errStyle    = lipgloss.NewStyle().Foreground(colRed).Bold(true)
-	dim         = lipgloss.NewStyle().Foreground(colOverlay)
-	pass        = lipgloss.NewStyle().Foreground(colGreen).Bold(true)
-	fail        = lipgloss.NewStyle().Foreground(colRed).Bold(true)
-	pending     = lipgloss.NewStyle().Foreground(colYellow)
-	hint        = lipgloss.NewStyle().Foreground(colSubtext)
-	repoHeader  = lipgloss.NewStyle().Bold(true).Foreground(colMauve)
-	prNumStyle  = lipgloss.NewStyle().Foreground(colBlue).Bold(true)
-	prTitle     = lipgloss.NewStyle().Foreground(colFG)
-	authorTag   = lipgloss.NewStyle().Foreground(colPeach)
-	keyCap      = lipgloss.NewStyle().
+	errStyle   = lipgloss.NewStyle().Foreground(colRed).Bold(true)
+	dim        = lipgloss.NewStyle().Foreground(colOverlay)
+	pass       = lipgloss.NewStyle().Foreground(colGreen).Bold(true)
+	fail       = lipgloss.NewStyle().Foreground(colRed).Bold(true)
+	pending    = lipgloss.NewStyle().Foreground(colYellow)
+	hint       = lipgloss.NewStyle().Foreground(colSubtext)
+	repoHeader = lipgloss.NewStyle().Bold(true).Foreground(colMauve)
+	prNumStyle = lipgloss.NewStyle().Foreground(colBlue).Bold(true)
+	prTitle    = lipgloss.NewStyle().Foreground(colFG)
+	authorTag  = lipgloss.NewStyle().Foreground(colPeach)
+	keyCap     = lipgloss.NewStyle().
 			Foreground(colFG).
 			Background(colSurface0).
 			Bold(true).
