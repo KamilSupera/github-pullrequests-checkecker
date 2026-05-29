@@ -1,0 +1,30 @@
+{
+  "number": 88,
+  "title": "feat: idempotency keys for the charge endpoint",
+  "url": "https://github.com/acme/payments-api/pull/88",
+  "body": "## What\nAdds `Idempotency-Key` support to `POST /charges` so retried requests don't double-charge.\n\n## Why\nA network retry on the mobile client created duplicate charges (incident #229).\n\n## How\n- Store key -> response for 24h in Redis\n- Replay the stored response on a repeat key",
+  "headRefName": "feat/idempotency-keys",
+  "baseRefName": "main",
+  "author": {"login": "jdoe"},
+  "statusCheckRollup": [
+    {"name": "build",       "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "unit-tests",  "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "integration", "status": "COMPLETED", "conclusion": "FAILURE"}
+  ],
+  "comments": [
+    {"author": {"login": "demo-user"}, "body": "What happens if two requests with the same key arrive concurrently?", "createdAt": "2026-05-29T09:01:00Z"}
+  ],
+  "reviews": [],
+  "state": "OPEN",
+  "isDraft": false,
+  "reviewDecision": "REVIEW_REQUIRED",
+  "mergeStateStatus": "BLOCKED",
+  "mergeable": "CONFLICTING",
+  "labels": [{"name": "feature", "color": "0e8a16"}, {"name": "payments", "color": "fbca04"}],
+  "assignees": [{"login": "jdoe"}],
+  "reviewRequests": [{"login": "demo-user"}],
+  "updatedAt": "2026-05-29T09:30:00Z",
+  "changedFiles": 8,
+  "additions": 264,
+  "deletions": 21
+}

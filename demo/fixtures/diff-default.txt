@@ -1,0 +1,10 @@
+diff --git a/README.md b/README.md
+index 1234567..89abcde 100644
+--- a/README.md
++++ b/README.md
+@@ -1,3 +1,5 @@
+ # demo
+
++A demo change for screenshots.
++
+ Nothing to see here.

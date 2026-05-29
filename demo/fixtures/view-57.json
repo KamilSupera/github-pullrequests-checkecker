@@ -1,0 +1,30 @@
+{
+  "number": 57,
+  "title": "fix: debounce search input to cut redundant API calls",
+  "url": "https://github.com/acme/web-dashboard/pull/57",
+  "body": "## What\nDebounces the global search box (300ms) so we stop firing a request per keystroke.\n\n## Why\nSearch was hammering the API — ~12 requests for a typical query.\n\n## How\n- `useDebouncedValue` hook\n- Cancel in-flight request on a new query",
+  "headRefName": "fix/search-debounce",
+  "baseRefName": "main",
+  "author": {"login": "demo-user"},
+  "statusCheckRollup": [
+    {"name": "build",      "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "unit-tests", "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "lint",       "status": "COMPLETED", "conclusion": "SUCCESS"}
+  ],
+  "comments": [],
+  "reviews": [
+    {"author": {"login": "bchen"}, "body": "Nice, this should help. Approving.", "state": "APPROVED", "submittedAt": "2026-05-29T07:50:00Z"}
+  ],
+  "state": "OPEN",
+  "isDraft": false,
+  "reviewDecision": "APPROVED",
+  "mergeStateStatus": "CLEAN",
+  "mergeable": "MERGEABLE",
+  "labels": [{"name": "bug", "color": "d73a4a"}, {"name": "frontend", "color": "1d76db"}],
+  "assignees": [{"login": "demo-user"}],
+  "reviewRequests": [],
+  "updatedAt": "2026-05-29T07:55:00Z",
+  "changedFiles": 2,
+  "additions": 38,
+  "deletions": 9
+}

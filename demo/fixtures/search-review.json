@@ -1,0 +1,20 @@
+[
+  {
+    "number": 88,
+    "title": "feat: idempotency keys for the charge endpoint",
+    "url": "https://github.com/acme/payments-api/pull/88",
+    "author": {"login": "jdoe"},
+    "repository": {"nameWithOwner": "acme/payments-api"},
+    "createdAt": "2026-05-28T10:11:00Z",
+    "updatedAt": "2026-05-29T09:30:00Z"
+  },
+  {
+    "number": 91,
+    "title": "fix: crash on empty push notification payload",
+    "url": "https://github.com/acme/mobile-app/pull/91",
+    "author": {"login": "msmith"},
+    "repository": {"nameWithOwner": "acme/mobile-app"},
+    "createdAt": "2026-05-29T06:48:00Z",
+    "updatedAt": "2026-05-29T09:12:00Z"
+  }
+]

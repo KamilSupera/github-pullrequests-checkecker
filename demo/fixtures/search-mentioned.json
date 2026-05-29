@@ -1,0 +1,11 @@
+[
+  {
+    "number": 104,
+    "title": "chore: bump terraform aws provider to 5.x",
+    "url": "https://github.com/acme/infra/pull/104",
+    "author": {"login": "devops-bot"},
+    "repository": {"nameWithOwner": "acme/infra"},
+    "createdAt": "2026-05-27T11:20:00Z",
+    "updatedAt": "2026-05-28T15:03:00Z"
+  }
+]

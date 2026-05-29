@@ -1,0 +1,27 @@
+{
+  "number": 91,
+  "title": "fix: crash on empty push notification payload",
+  "url": "https://github.com/acme/mobile-app/pull/91",
+  "body": "## What\nGuards against a nil/empty `data` field in incoming push payloads.\n\n## Why\nFatal NPE when the server sends a silent push with no body (Crashlytics #4471).\n\n## How\n- Early return when `payload.data` is null\n- Unit test for the empty-payload path",
+  "headRefName": "fix/push-empty-payload",
+  "baseRefName": "develop",
+  "author": {"login": "msmith"},
+  "statusCheckRollup": [
+    {"name": "build",      "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "unit-tests", "status": "COMPLETED", "conclusion": "SUCCESS"}
+  ],
+  "comments": [],
+  "reviews": [],
+  "state": "OPEN",
+  "isDraft": true,
+  "reviewDecision": "REVIEW_REQUIRED",
+  "mergeStateStatus": "DRAFT",
+  "mergeable": "MERGEABLE",
+  "labels": [{"name": "bug", "color": "d73a4a"}, {"name": "mobile", "color": "c5def5"}],
+  "assignees": [{"login": "msmith"}],
+  "reviewRequests": [{"login": "demo-user"}],
+  "updatedAt": "2026-05-29T09:12:00Z",
+  "changedFiles": 2,
+  "additions": 31,
+  "deletions": 3
+}

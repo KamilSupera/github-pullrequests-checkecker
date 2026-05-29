@@ -1,0 +1,32 @@
+diff --git a/src/hooks/useDebouncedValue.ts b/src/hooks/useDebouncedValue.ts
+new file mode 100644
+index 0000000..aa11bb2
+--- /dev/null
++++ b/src/hooks/useDebouncedValue.ts
+@@ -0,0 +1,16 @@
++import { useEffect, useState } from "react";
++
++export function useDebouncedValue<T>(value: T, delayMs = 300): T {
++  const [debounced, setDebounced] = useState(value);
++  useEffect(() => {
++    const id = setTimeout(() => setDebounced(value), delayMs);
++    return () => clearTimeout(id);
++  }, [value, delayMs]);
++  return debounced;
++}
+diff --git a/src/components/SearchBox.tsx b/src/components/SearchBox.tsx
+index 3333333..4444444 100644
+--- a/src/components/SearchBox.tsx
++++ b/src/components/SearchBox.tsx
+@@ -8,13 +8,12 @@ export function SearchBox() {
+   const [query, setQuery] = useState("");
+-  useEffect(() => {
+-    search(query);
+-  }, [query]);
++  const debounced = useDebouncedValue(query, 300);
++  useEffect(() => {
++    if (debounced) search(debounced);
++  }, [debounced]);
+
+   return <input value={query} onChange={(e) => setQuery(e.target.value)} />;
+ }

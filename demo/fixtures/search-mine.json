@@ -1,0 +1,29 @@
+[
+  {
+    "number": 42,
+    "title": "feat: dark mode toggle for the settings page",
+    "url": "https://github.com/acme/web-dashboard/pull/42",
+    "author": {"login": "demo-user"},
+    "repository": {"nameWithOwner": "acme/web-dashboard"},
+    "createdAt": "2026-05-27T09:14:00Z",
+    "updatedAt": "2026-05-29T08:02:00Z"
+  },
+  {
+    "number": 57,
+    "title": "fix: debounce search input to cut redundant API calls",
+    "url": "https://github.com/acme/web-dashboard/pull/57",
+    "author": {"login": "demo-user"},
+    "repository": {"nameWithOwner": "acme/web-dashboard"},
+    "createdAt": "2026-05-28T13:40:00Z",
+    "updatedAt": "2026-05-29T07:55:00Z"
+  },
+  {
+    "number": 63,
+    "title": "refactor: extract HTTP retry logic into shared middleware",
+    "url": "https://github.com/acme/payments-api/pull/63",
+    "author": {"login": "demo-user"},
+    "repository": {"nameWithOwner": "acme/payments-api"},
+    "createdAt": "2026-05-26T16:05:00Z",
+    "updatedAt": "2026-05-28T18:21:00Z"
+  }
+]

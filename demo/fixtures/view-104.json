@@ -1,0 +1,30 @@
+{
+  "number": 104,
+  "title": "chore: bump terraform aws provider to 5.x",
+  "url": "https://github.com/acme/infra/pull/104",
+  "body": "## What\nBumps the AWS provider from 4.67 to 5.x and fixes the breaking `aws_s3_bucket` changes.\n\n## Why\n4.x is EOL and blocks the new SSE-KMS settings we need.\n\ncc @demo-user — you touched the S3 modules last.",
+  "headRefName": "chore/tf-aws-provider-5",
+  "baseRefName": "main",
+  "author": {"login": "devops-bot"},
+  "statusCheckRollup": [
+    {"name": "terraform-plan", "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "tflint",         "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "checkov",        "status": "COMPLETED", "conclusion": "FAILURE"}
+  ],
+  "comments": [
+    {"author": {"login": "demo-user"}, "body": "The checkov failure is a pre-existing finding, not from this bump.", "createdAt": "2026-05-28T14:50:00Z"}
+  ],
+  "reviews": [],
+  "state": "OPEN",
+  "isDraft": false,
+  "reviewDecision": "REVIEW_REQUIRED",
+  "mergeStateStatus": "BLOCKED",
+  "mergeable": "MERGEABLE",
+  "labels": [{"name": "dependencies", "color": "0366d6"}, {"name": "infra", "color": "bfdadc"}],
+  "assignees": [{"login": "devops-bot"}],
+  "reviewRequests": [{"login": "demo-user"}],
+  "updatedAt": "2026-05-28T15:03:00Z",
+  "changedFiles": 11,
+  "additions": 73,
+  "deletions": 61
+}

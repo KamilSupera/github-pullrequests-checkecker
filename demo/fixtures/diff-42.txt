@@ -1,0 +1,56 @@
+diff --git a/src/theme/ThemeToggle.tsx b/src/theme/ThemeToggle.tsx
+new file mode 100644
+index 0000000..a1b2c3d
+--- /dev/null
++++ b/src/theme/ThemeToggle.tsx
+@@ -0,0 +1,28 @@
++import { useTheme } from "./useTheme";
++
++export function ThemeToggle() {
++  const { theme, toggle } = useTheme();
++  const next = theme === "dark" ? "light" : "dark";
++
++  return (
++    <button className="theme-toggle" onClick={toggle}>
++      {theme === "dark" ? "🌙" : "☀️"}
++    </button>
++  );
++}
+diff --git a/src/theme/useTheme.ts b/src/theme/useTheme.ts
+new file mode 100644
+index 0000000..e4f5a6b
+--- /dev/null
++++ b/src/theme/useTheme.ts
+@@ -0,0 +1,22 @@
++import { useEffect, useState } from "react";
++
++export function useTheme() {
++  const [theme, setTheme] = useState("light");
++
++  useEffect(() => {
++    const stored = localStorage.getItem("theme");
++    if (stored) setTheme(stored);
++  }, []);
++
++  useEffect(() => {
++    document.documentElement.dataset.theme = theme;
++    localStorage.setItem("theme", theme);
++  }, [theme]);
++
++  const toggle = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
++  return { theme, toggle };
++}
+diff --git a/src/styles/tokens.css b/src/styles/tokens.css
+index 1111111..2222222 100644
+--- a/src/styles/tokens.css
++++ b/src/styles/tokens.css
+@@ -1,6 +1,14 @@
+ :root {
+   --bg: #ffffff;
+   --fg: #1a1a1a;
+ }
++
++[data-theme="dark"] {
++  --bg: #0d1117;
++  --fg: #e6edf3;
++}

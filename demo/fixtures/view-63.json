@@ -1,0 +1,31 @@
+{
+  "number": 63,
+  "title": "refactor: extract HTTP retry logic into shared middleware",
+  "url": "https://github.com/acme/payments-api/pull/63",
+  "body": "## What\nMoves the ad-hoc retry/backoff code out of three handlers into a single `retry` middleware.\n\n## Why\nThe same exponential-backoff loop was copy-pasted in three places and had drifted.\n\n## How\n- `middleware/retry.go` with configurable max attempts + jitter\n- Handlers now wrap their client with it",
+  "headRefName": "refactor/retry-middleware",
+  "baseRefName": "main",
+  "author": {"login": "demo-user"},
+  "statusCheckRollup": [
+    {"name": "build",      "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "unit-tests", "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "coverage",   "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "integration","status": "QUEUED",    "conclusion": ""}
+  ],
+  "comments": [
+    {"author": {"login": "jdoe"}, "body": "Been meaning to do this for ages. Thank you.", "createdAt": "2026-05-27T09:02:00Z"}
+  ],
+  "reviews": [],
+  "state": "OPEN",
+  "isDraft": false,
+  "reviewDecision": "REVIEW_REQUIRED",
+  "mergeStateStatus": "BLOCKED",
+  "mergeable": "MERGEABLE",
+  "labels": [{"name": "refactor", "color": "5319e7"}, {"name": "backend", "color": "0e8a16"}],
+  "assignees": [{"login": "demo-user"}],
+  "reviewRequests": [{"login": "jdoe"}],
+  "updatedAt": "2026-05-28T18:21:00Z",
+  "changedFiles": 6,
+  "additions": 142,
+  "deletions": 168
+}

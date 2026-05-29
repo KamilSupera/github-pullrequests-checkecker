@@ -1,0 +1,37 @@
+{
+  "number": 42,
+  "title": "feat: dark mode toggle for the settings page",
+  "url": "https://github.com/acme/web-dashboard/pull/42",
+  "body": "## What\nAdds a dark mode toggle to the settings page. Theme preference persists to localStorage and falls back to the OS `prefers-color-scheme`.\n\n## Why\nTop request in the last user survey (#311).\n\n## How\n- New `ThemeToggle` component + `useTheme` hook\n- CSS variables swapped via a `data-theme` attribute on `<html>`\n\n## Screenshots\n_(light/dark side-by-side in the PR)_",
+  "headRefName": "feat/dark-mode-toggle",
+  "baseRefName": "main",
+  "author": {"login": "demo-user"},
+  "statusCheckRollup": [
+    {"name": "build",        "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "unit-tests",   "status": "COMPLETED", "conclusion": "SUCCESS"},
+    {"name": "lint",         "status": "COMPLETED", "conclusion": "FAILURE"},
+    {"name": "e2e",          "status": "IN_PROGRESS", "conclusion": ""}
+  ],
+  "comments": [
+    {"author": {"login": "alee"}, "body": "Love this. Does it respect the OS setting on first load?", "createdAt": "2026-05-27T12:10:00Z"},
+    {"author": {"login": "demo-user"}, "body": "Yep — falls back to prefers-color-scheme when nothing is stored.", "createdAt": "2026-05-27T12:34:00Z"}
+  ],
+  "reviews": [
+    {"author": {"login": "alee"}, "body": "A couple of small things, otherwise LGTM.", "state": "COMMENTED", "submittedAt": "2026-05-28T08:20:00Z"}
+  ],
+  "state": "OPEN",
+  "isDraft": false,
+  "reviewDecision": "REVIEW_REQUIRED",
+  "mergeStateStatus": "BLOCKED",
+  "mergeable": "MERGEABLE",
+  "labels": [
+    {"name": "feature", "color": "0e8a16"},
+    {"name": "frontend", "color": "1d76db"}
+  ],
+  "assignees": [{"login": "demo-user"}],
+  "reviewRequests": [{"login": "alee"}, {"login": "bchen"}],
+  "updatedAt": "2026-05-29T08:02:00Z",
+  "changedFiles": 5,
+  "additions": 187,
+  "deletions": 12
+}

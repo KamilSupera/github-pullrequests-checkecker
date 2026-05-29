@@ -1,0 +1,26 @@
+{
+  "number": 0,
+  "title": "Demo pull request",
+  "url": "https://github.com/acme/demo/pull/0",
+  "body": "A demo pull request.",
+  "headRefName": "demo/branch",
+  "baseRefName": "main",
+  "author": {"login": "demo-user"},
+  "statusCheckRollup": [
+    {"name": "build", "status": "COMPLETED", "conclusion": "SUCCESS"}
+  ],
+  "comments": [],
+  "reviews": [],
+  "state": "OPEN",
+  "isDraft": false,
+  "reviewDecision": "REVIEW_REQUIRED",
+  "mergeStateStatus": "BLOCKED",
+  "mergeable": "MERGEABLE",
+  "labels": [],
+  "assignees": [{"login": "demo-user"}],
+  "reviewRequests": [],
+  "updatedAt": "2026-05-29T08:00:00Z",
+  "changedFiles": 1,
+  "additions": 10,
+  "deletions": 2
+}

@@ -1,0 +1,62 @@
+#!/bin/sh
+# Fake `gh` for prcheck demo/screenshots. Serves canned fixtures, posts nothing.
+# Selected onto PATH by demo/demo.sh. Never talks to GitHub.
+set -e
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+FIX="$DIR/../fixtures"
+
+cmd="$1"; sub="$2"
+
+# `gh auth status` — prcheck checks this at startup.
+if [ "$cmd" = "auth" ] && [ "$sub" = "status" ]; then
+  echo "github.com: logged in as demo-user (DEMO)" >&2
+  exit 0
+fi
+
+# `gh search prs ...` — pick fixture by the @me filter flag.
+if [ "$cmd" = "search" ] && [ "$sub" = "prs" ]; then
+  for a in "$@"; do
+    case "$a" in
+      --review-requested=*) cat "$FIX/search-review.json"; exit 0 ;;
+      --mentions=*)         cat "$FIX/search-mentioned.json"; exit 0 ;;
+    esac
+  done
+  cat "$FIX/search-mine.json"   # --author=@me
+  exit 0
+fi
+
+# `gh pr <view|diff|checks> <url> ...` — fixture keyed by PR number in the URL.
+if [ "$cmd" = "pr" ]; then
+  url=""
+  shift 2
+  for a in "$@"; do
+    case "$a" in
+      --*) : ;;            # skip flags
+      *://*) url="$a" ;;   # the PR URL
+    esac
+  done
+  num=${url##*/}
+  case "$sub" in
+    view)
+      f="$FIX/view-$num.json"; [ -f "$f" ] || f="$FIX/view-default.json"
+      cat "$f"; exit 0 ;;
+    diff)
+      f="$FIX/diff-$num.txt"; [ -f "$f" ] || f="$FIX/diff-default.txt"
+      cat "$f"; exit 0 ;;
+    checks)
+      f="$FIX/checks-$num.txt"; [ -f "$f" ] || f="$FIX/checks-default.txt"
+      cat "$f"; exit 0 ;;
+  esac
+fi
+
+# `gh api ...`
+if [ "$cmd" = "api" ]; then
+  for a in "$@"; do
+    [ "$a" = "POST" ] && { echo '{"id": 99042}'; exit 0; }  # posting a review — return fake id
+  done
+  echo '[]'   # inline comments listing
+  exit 0
+fi
+
+echo "fake-gh: unhandled: $*" >&2
+exit 1

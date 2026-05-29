@@ -1,0 +1,41 @@
+#!/bin/sh
+# Fake `claude` for prcheck demo/screenshots. Emits a canned review JSON.
+# prcheck calls: claude -p <prompt> --output-format text
+# Never contacts Anthropic.
+cat <<'JSON'
+{
+  "summary": "Solid change overall. The dark-mode toggle is wired correctly and persists to localStorage. Two things worth tightening before merge: the theme flash on first paint, and a missing test for the system-preference fallback.",
+  "aspects": [
+    {"name": "correctness",   "status": "ok",      "note": "Toggle state and persistence behave as intended."},
+    {"name": "tests",         "status": "missing", "note": "No test covers the prefers-color-scheme fallback path."},
+    {"name": "performance",   "status": "ok",      "note": "No measurable render cost; class swap only."},
+    {"name": "accessibility", "status": "issue",   "note": "Toggle button lacks an aria-label."},
+    {"name": "security",      "status": "n/a",     "note": "No untrusted input handled."}
+  ],
+  "comments": [
+    {
+      "path": "src/theme/ThemeToggle.tsx",
+      "line": 24,
+      "side": "RIGHT",
+      "severity": "major",
+      "body": "Theme is applied in a useEffect, so the first paint flashes the default theme before the stored value loads. Read the stored theme synchronously (or inline a blocking script in the document head) to avoid FOUC.",
+      "suggestion": "const initial = localStorage.getItem('theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');"
+    },
+    {
+      "path": "src/theme/ThemeToggle.tsx",
+      "line": 41,
+      "side": "RIGHT",
+      "severity": "minor",
+      "body": "The toggle button has no accessible name. Screen readers announce it as an empty button.",
+      "suggestion": "<button aria-label={`Switch to ${next} mode`} onClick={toggle}>"
+    },
+    {
+      "path": "src/theme/useTheme.ts",
+      "line": 12,
+      "side": "RIGHT",
+      "severity": "nit",
+      "body": "Magic string 'theme' is repeated across three files. Extract a STORAGE_KEY constant."
+    }
+  ]
+}
+JSON

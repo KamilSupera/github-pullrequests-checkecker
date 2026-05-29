@@ -1,0 +1,46 @@
+diff --git a/middleware/retry.go b/middleware/retry.go
+new file mode 100644
+index 0000000..c0ffee1
+--- /dev/null
++++ b/middleware/retry.go
+@@ -0,0 +1,34 @@
++package middleware
++
++import (
++	"math/rand"
++	"net/http"
++	"time"
++)
++
++type Retry struct {
++	Max     int
++	Base    time.Duration
++	Next    http.RoundTripper
++}
++
++func (r Retry) RoundTrip(req *http.Request) (*http.Response, error) {
++	var resp *http.Response
++	var err error
++	for attempt := 0; attempt <= r.Max; attempt++ {
++		resp, err = r.Next.RoundTrip(req)
++		if err == nil && resp.StatusCode < 500 {
++			return resp, nil
++		}
++		backoff := r.Base * (1 << attempt)
++		jitter := time.Duration(rand.Int63n(int64(r.Base)))
++		time.Sleep(backoff + jitter)
++	}
++	return resp, err
++}
+diff --git a/handlers/charge.go b/handlers/charge.go
+index 5555555..6666666 100644
+--- a/handlers/charge.go
++++ b/handlers/charge.go
+@@ -12,18 +12,7 @@ func NewChargeHandler() *ChargeHandler {
+-	// inline retry loop (removed)
+-	for i := 0; i < 3; i++ {
+-		resp, err = client.Do(req)
+-		if err == nil { break }
+-		time.Sleep(time.Duration(i) * time.Second)
+-	}
++	client.Transport = middleware.Retry{Max: 3, Base: time.Second, Next: http.DefaultTransport}
