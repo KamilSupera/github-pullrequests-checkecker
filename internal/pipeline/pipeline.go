@@ -133,30 +133,7 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (*Result, 
 	if err != nil {
 		return nil, err
 	}
-	// Filter out low-priority comments (post-step keeps blocker/major).
-	var kept []claude.ReviewComment
-	droppedSeverity := 0
-	for _, c := range review.Comments {
-		if c.Severity == "blocker" || c.Severity == "major" {
-			kept = append(kept, c)
-		} else {
-			droppedSeverity++
-		}
-	}
-
-	// Filter against the diff so GitHub doesn't reject the POST as 422
-	// for comments referencing lines outside any hunk.
-	valid := ParseValidLines(diff)
-	var addressable []claude.ReviewComment
-	droppedOutOfDiff := 0
-	for _, c := range kept {
-		if valid.Allows(c.Path, c.Line, c.Side) {
-			addressable = append(addressable, c)
-		} else {
-			droppedOutOfDiff++
-		}
-	}
-	kept = addressable
+	kept, droppedSeverity, droppedOutOfDiff := selectComments(review.Comments, diff)
 
 	claudeNote := fmt.Sprintf("got review in %s: %d kept (%d nit/minor, %d out-of-diff)",
 		time.Since(start).Truncate(time.Second), len(kept), droppedSeverity, droppedOutOfDiff)
@@ -175,27 +152,56 @@ func Run(ctx context.Context, d Deps, prURL string, emit func(Event)) (*Result, 
 			Suggestion: strings.TrimSpace(c.Suggestion),
 		}
 	}
-	id, err := d.Post.PostPendingReview(ctx, prURL, review.Summary, ghComments)
-	if err != nil {
-		// Retry once with no inline comments — most 422s are about a
-		// single bad line reference; the summary alone is still useful.
-		if strings.Contains(err.Error(), "HTTP 422") || strings.Contains(err.Error(), "Unprocessable Entity") {
-			emit(Event{Step: "post", Status: "warn", Err: err, Note: "GitHub rejected inline comments (422); retrying summary-only"})
-			id2, err2 := d.Post.PostPendingReview(ctx, prURL, review.Summary+
-				fmt.Sprintf("\n\n_(%d inline comments dropped: GitHub rejected one or more line references.)_", len(ghComments)),
-				nil)
-			if err2 == nil {
-				emit(Event{Step: "post", Status: "done", Note: fmt.Sprintf("review #%d posted (summary only)", id2)})
-				return &Result{ID: id2, Summary: review.Summary, Aspects: review.Aspects, Comments: nil}, nil
-			}
-			dumpFailedReview(prURL, review.Summary, ghComments)
-			return nil, err2
+	return postReview(ctx, d.Post, prURL, review, ghComments, emit)
+}
+
+// selectComments keeps only blocker/major comments that also fall inside
+// a hunk of the diff. Low-severity comments are dropped (the post step
+// only surfaces blockers/majors), and comments referencing lines outside
+// any hunk are dropped too — GitHub rejects the review POST with a 422
+// when an inline comment points at a line that isn't part of the diff.
+// It reports how many were dropped for each reason.
+func selectComments(comments []claude.ReviewComment, diff string) (kept []claude.ReviewComment, droppedSeverity, droppedOutOfDiff int) {
+	valid := ParseValidLines(diff)
+	for _, c := range comments {
+		if c.Severity != "blocker" && c.Severity != "major" {
+			droppedSeverity++
+			continue
+		}
+		if !valid.Allows(c.Path, c.Line, c.Side) {
+			droppedOutOfDiff++
+			continue
+		}
+		kept = append(kept, c)
+	}
+	return
+}
+
+// postReview POSTs the pending review and returns the new review ID. On a
+// 422 it retries once with the summary alone — most 422s come from a
+// single bad inline-comment line reference, and the summary is still
+// worth posting. If even the summary-only POST fails, or the error isn't
+// a 422, the payload is dumped to /tmp so the Claude output isn't lost.
+func postReview(ctx context.Context, post Poster, prURL string, review *claude.Review, ghComments []github.ReviewComment, emit func(Event)) (*Result, error) {
+	id, err := post.PostPendingReview(ctx, prURL, review.Summary, ghComments)
+	if err == nil {
+		emit(Event{Step: "post", Status: "done", Note: fmt.Sprintf("review #%d posted as PENDING", id)})
+		return &Result{ID: id, Summary: review.Summary, Aspects: review.Aspects, Comments: ghComments}, nil
+	}
+	if strings.Contains(err.Error(), "HTTP 422") || strings.Contains(err.Error(), "Unprocessable Entity") {
+		emit(Event{Step: "post", Status: "warn", Err: err, Note: "GitHub rejected inline comments (422); retrying summary-only"})
+		id2, err2 := post.PostPendingReview(ctx, prURL, review.Summary+
+			fmt.Sprintf("\n\n_(%d inline comments dropped: GitHub rejected one or more line references.)_", len(ghComments)),
+			nil)
+		if err2 == nil {
+			emit(Event{Step: "post", Status: "done", Note: fmt.Sprintf("review #%d posted (summary only)", id2)})
+			return &Result{ID: id2, Summary: review.Summary, Aspects: review.Aspects, Comments: nil}, nil
 		}
 		dumpFailedReview(prURL, review.Summary, ghComments)
-		return nil, err
+		return nil, err2
 	}
-	emit(Event{Step: "post", Status: "done", Note: fmt.Sprintf("review #%d posted as PENDING", id)})
-	return &Result{ID: id, Summary: review.Summary, Aspects: review.Aspects, Comments: ghComments}, nil
+	dumpFailedReview(prURL, review.Summary, ghComments)
+	return nil, err
 }
 
 // summarizeDiff counts the number of files touched and added/removed
@@ -217,10 +223,11 @@ func summarizeDiff(diff string) (files, adds, dels int) {
 }
 
 func truncateStr(s string, n int) string {
-	if len(s) <= n {
+	r := []rune(s)
+	if len(r) <= n {
 		return s
 	}
-	return s[:n-1] + "…"
+	return string(r[:n-1]) + "…"
 }
 
 // stripDecorations removes severity prefixes and leading emoji/icons

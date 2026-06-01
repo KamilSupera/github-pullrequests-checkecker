@@ -52,7 +52,6 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	_ = cfg.Debug // hook for future log routing
 
 	jiraFetcher := claude.JiraMCPFetcher{}
 	ghClient := github.CLIClient{}

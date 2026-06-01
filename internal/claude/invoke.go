@@ -19,8 +19,9 @@ func Invoke(ctx context.Context, prompt string) (*Review, error) {
 }
 
 func tail(s string, n int) string {
-	if len(s) <= n {
+	r := []rune(s)
+	if len(r) <= n {
 		return s
 	}
-	return "..." + s[len(s)-n:]
+	return "..." + string(r[len(r)-n:])
 }
