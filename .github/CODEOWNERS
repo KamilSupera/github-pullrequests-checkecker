@@ -1,0 +1,3 @@
+# Default owner for everything in the repo. Required-review rules can
+# reference these owners so changes get a review before merge.
+* @KamilSupera
