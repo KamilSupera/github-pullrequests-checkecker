@@ -336,23 +336,49 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.cancel()
 		return m, tea.Quit
 
+	case "l", "right":
+		m.focus = (m.focus + 1) % 3
+		return m, nil
+
+	case "h", "left":
+		m.focus = (m.focus + 2) % 3
+		return m, nil
+
 	case "j", "down":
-		prs := m.prsByTab[m.tab]
-		if m.cursor < len(prs)-1 {
-			m.cursor++
-			m.commentsOffset = 0
-			m.detailOffset = 0
+		switch m.focus {
+		case focusDetail:
+			m.detailOffset++
+			m = m.clampDetailOffset()
+		case focusComments:
+			m.commentsOffset++
+			m = m.clampCommentsOffset()
+		default: // focusList
+			prs := m.prsByTab[m.tab]
+			if m.cursor < len(prs)-1 {
+				m.cursor++
+				m.commentsOffset = 0
+				m.detailOffset = 0
+			}
+			m = m.scrollListIntoView()
 		}
-		m = m.scrollListIntoView()
 		return m, nil
 
 	case "k", "up":
-		if m.cursor > 0 {
-			m.cursor--
-			m.commentsOffset = 0
-			m.detailOffset = 0
+		switch m.focus {
+		case focusDetail:
+			m.detailOffset--
+			m = m.clampDetailOffset()
+		case focusComments:
+			m.commentsOffset--
+			m = m.clampCommentsOffset()
+		default: // focusList
+			if m.cursor > 0 {
+				m.cursor--
+				m.commentsOffset = 0
+				m.detailOffset = 0
+			}
+			m = m.scrollListIntoView()
 		}
-		m = m.scrollListIntoView()
 		return m, nil
 
 	case "J", "pgdown":

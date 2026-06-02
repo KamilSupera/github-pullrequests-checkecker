@@ -97,16 +97,48 @@ func paneInnerSize(termW, termH int) (w, h int) {
 	return
 }
 
+// borderFor returns the border color for a box: bright when it holds the
+// current focus, dim otherwise.
+func (m Model) borderFor(area focusArea) lipgloss.Color {
+	if m.focus == area {
+		return borderActiveColor
+	}
+	return borderColor
+}
+
 func (m Model) View() string {
 	paneW, paneH := paneInnerSize(m.termW, m.termH)
-	leftPane := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(borderActiveColor).
-		Width(paneW).
-		Height(paneH).
-		MaxHeight(paneH + 2)
 
+	// Assemble the chrome first so the body can be sized to whatever room
+	// is actually left. The footer grows when a transient status message
+	// or active filter line is shown; without this the total would exceed
+	// termH and alt-screen would clip the body's bottom border.
 	header := m.renderTabs()
+	footer := m.renderFooter()
+	if u := claude.SessionUsage(); u.Calls > 0 {
+		footer = renderUsageLine(u) + "\n" + footer
+	}
+	if m.statusMsg != "" {
+		footer = lipgloss.NewStyle().Foreground(colYellow).Render(m.statusMsg) + "\n" + footer
+	}
+	if m.filtering || m.filter != "" {
+		footer = m.renderFilterLine() + "\n" + footer
+	}
+	if avail := m.termH - lipgloss.Height(header) - lipgloss.Height(footer); avail > 0 && paneH+2 > avail {
+		paneH = avail - 2
+		if paneH < 5 {
+			paneH = 5
+		}
+	}
+	// Propagate the (possibly shrunk) height to every body renderer. These
+	// are local mutations on the value receiver, and no-ops when nothing
+	// shrank.
+	m.listH = paneH
+	m.resultH = paneH
+	m.diffVP.Height = paneH
+	m.checksVP.Height = paneH
+	m.statsVP.Height = paneH
+
 	var body string
 	if m.viewingStats {
 		fullW := paneW*2 + 4 // left + right + borders
@@ -118,18 +150,17 @@ func (m Model) View() string {
 			MaxHeight(paneH + 2)
 		body = statsPane.Render(m.statsVP.View())
 	} else {
+		leftPane := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(m.borderFor(focusList)).
+			Width(paneW).
+			Height(paneH).
+			MaxHeight(paneH + 2)
 		left := m.renderList()
 		right := m.renderRightSplit(paneW, paneH)
 		body = lipgloss.JoinHorizontal(lipgloss.Top, leftPane.Render(left), right)
 	}
 
-	footer := m.renderFooter()
-	if m.statusMsg != "" {
-		footer = lipgloss.NewStyle().Foreground(colYellow).Render(m.statusMsg) + "\n" + footer
-	}
-	if m.filtering || m.filter != "" {
-		footer = m.renderFilterLine() + "\n" + footer
-	}
 	return strings.Join([]string{header, body, footer}, "\n")
 }
 
@@ -164,6 +195,7 @@ func (m Model) renderFooter() string {
 	} else {
 		items = []kh{
 			{"j/k", "move"},
+			{"h/l", "focus"},
 			{"/", "filter"},
 			{"Space", "load"},
 			{"d", "diff"},
@@ -179,7 +211,66 @@ func (m Model) renderFooter() string {
 	for _, it := range items {
 		parts = append(parts, keyCap.Render(it.key)+" "+keyHelp.Render(it.help))
 	}
-	return strings.Join(parts, "  ")
+	return packLines(parts, "  ", m.termW)
+}
+
+// packLines greedily joins parts with sep, wrapping to a new line whenever
+// the next part would overflow width. Keeps the footer fully visible on
+// narrow terminals instead of clipping the tail (e.g. "o open").
+func packLines(parts []string, sep string, width int) string {
+	if width < 1 || len(parts) == 0 {
+		return strings.Join(parts, sep)
+	}
+	sepW := lipgloss.Width(sep)
+	var lines []string
+	cur := ""
+	curW := 0
+	for _, p := range parts {
+		pw := lipgloss.Width(p)
+		switch {
+		case cur == "":
+			cur, curW = p, pw
+		case curW+sepW+pw > width:
+			lines = append(lines, cur)
+			cur, curW = p, pw
+		default:
+			cur += sep + p
+			curW += sepW + pw
+		}
+	}
+	if cur != "" {
+		lines = append(lines, cur)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// renderUsageLine shows the cumulative Claude token usage and cost for
+// this session, rendered dim. Placed just above the key-help row.
+func renderUsageLine(u claude.Usage) string {
+	cached := u.CacheReadTokens + u.CacheCreationTokens
+	callWord := "calls"
+	if u.Calls == 1 {
+		callWord = "call"
+	}
+	label := lipgloss.NewStyle().Foreground(colMauve).Render("⛁")
+	body := lipgloss.NewStyle().Foreground(colSubtext).Render(fmt.Sprintf(
+		" %s in · %s out · %s cached · $%.4f · %d %s",
+		fmtTokens(u.InputTokens), fmtTokens(u.OutputTokens), fmtTokens(cached),
+		u.CostUSD, u.Calls, callWord,
+	))
+	return label + body
+}
+
+// fmtTokens renders a token count compactly: 1234 → "1.2k", 2_000_000 → "2.0M".
+func fmtTokens(n int64) string {
+	switch {
+	case n >= 1_000_000:
+		return fmt.Sprintf("%.1fM", float64(n)/1e6)
+	case n >= 1_000:
+		return fmt.Sprintf("%.1fk", float64(n)/1e3)
+	default:
+		return fmt.Sprintf("%d", n)
+	}
 }
 
 func (m Model) renderTabs() string {
@@ -391,9 +482,14 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 		}
 	}
 	if useFull {
+		// The full right pane is bright whenever focus is on the right.
+		rc := borderColor
+		if m.focus != focusList {
+			rc = borderActiveColor
+		}
 		fullPane := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderActiveColor).
+			BorderForeground(rc).
 			Width(paneW).
 			Height(paneH).
 			MaxHeight(paneH + 2)
@@ -421,7 +517,7 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 
 	detailBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(borderColor).
+		BorderForeground(m.borderFor(focusDetail)).
 		Width(paneW).
 		Height(detailH).
 		MaxHeight(detailH + 2).
@@ -429,7 +525,7 @@ func (m Model) renderRightSplit(paneW, paneH int) string {
 
 	commentsBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(borderColor).
+		BorderForeground(m.borderFor(focusComments)).
 		Width(paneW).
 		Height(commentsH).
 		MaxHeight(commentsH + 2).

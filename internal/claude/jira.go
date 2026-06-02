@@ -1,11 +1,9 @@
 package claude
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/KamilSupera/github-pullrequests-checkecker/internal/jira"
@@ -29,15 +27,12 @@ type JiraMCPFetcher struct{}
 func (JiraMCPFetcher) FetchIssue(ctx context.Context, key string) (*jira.Issue, error) {
 	prompt := fmt.Sprintf(jiraPromptTemplate, key, key, key)
 
-	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, "claude", "-p", prompt, "--output-format", "text")
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("claude jira fetch: %w (stderr: %s)", err, tail(stderr.String(), 500))
+	out, err := runClaude(ctx, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("claude jira fetch: %w", err)
 	}
 
-	doc := findJSONObject(stdout.String())
+	doc := findJSONObject(out)
 	if doc == "" {
 		return nil, fmt.Errorf("no JSON object in claude jira response")
 	}

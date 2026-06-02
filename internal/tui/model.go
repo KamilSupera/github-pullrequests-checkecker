@@ -33,6 +33,17 @@ type stepRec struct {
 	err    error
 }
 
+// focusArea identifies which on-screen box currently has focus. The
+// focused box gets the bright border and j/k act on it. Zero value is
+// focusList so existing behavior is preserved.
+type focusArea int
+
+const (
+	focusList focusArea = iota
+	focusDetail
+	focusComments
+)
+
 type loaderFn func(ctx context.Context, q github.Query) ([]github.PR, error)
 type detailFn func(ctx context.Context, url string) (*github.PRDetail, error)
 type diffFn func(ctx context.Context, url string) (string, error)
@@ -60,6 +71,8 @@ type Model struct {
 	prsByTab map[Tab][]github.PR
 	loadErr  map[Tab]error
 	cursor   int
+
+	focus focusArea // which box (list/detail/comments) has focus
 
 	details map[string]*github.PRDetail
 	diffs   map[string]string
