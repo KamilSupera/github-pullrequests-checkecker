@@ -5,42 +5,60 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/KamilSupera/github-pullrequests-checkecker)](https://goreportcard.com/report/github.com/KamilSupera/github-pullrequests-checkecker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A terminal UI for reviewing GitHub Pull Requests with Claude Code.
+A terminal UI for reviewing GitHub pull requests with Claude Code or Cursor.
 
-`prcheck` lists PRs you authored, PRs that need your review, and PRs where you're
-mentioned — across all repos you can see. Select any PR and it runs an automated
-review pipeline that drafts a **pending** review for you to inspect and submit.
+`prcheck` shows the PRs you authored, the ones waiting on your review, and the ones
+that mention you, across every repo you can see. Pick one and it runs a review
+pipeline that drafts a **pending** GitHub review for you to read and submit. It never
+submits anything on its own.
 
-It is a thin orchestrator: it shells out to the `gh` and `claude` CLIs you already
-have. It stores **no credentials of its own** — all auth lives in those tools.
-
-
-
+It is a thin wrapper around the `gh` and `claude` (or `cursor-agent`) CLIs you already
+have. It keeps no credentials of its own. All auth lives in those tools.
 
 https://github.com/user-attachments/assets/3203ce5e-6b75-4a7f-956f-cc453ca0255e
 
+## What it does
+
+- **Three PR queues** in tabs: authored, review-requested, mentioned. Grouped by repo,
+  newest activity first.
+- **Automated review** that drafts a pending GitHub review with a summary, an
+  aspect checklist, and inline comments. You submit it yourself.
+- **Diff viewer** with per-file jumping and color.
+- **CI checks viewer**, plus a key to open the checks page in the browser.
+- **Quick-approve** that posts an `LGTM` approval without leaving the list.
+- **Bookmarks** and **batch review** to queue several PRs and review them in a row.
+- **Filter** the list by title, repo, branch, or author.
+- **New-since-you-last-looked** markers so you can tell what changed.
+- **Stats dashboard**: counts per tab, per repo, and stale-PR age.
+- **Desktop notifications** when a review finishes (opt-in).
+- **Pick your agent**: Claude or Cursor, switched live from inside the app.
+- **Token and cost counter** for the session (Claude reports usage; Cursor does not).
+- **Jira context**: pulls the linked issue through Claude's Atlassian MCP server, so the
+  review knows what the PR was supposed to do.
 
 ## How it works
 
-For a selected PR the pipeline:
+When you run a review on a PR, the pipeline:
 
 1. Fetches the diff with `gh pr diff`.
 2. Fetches CI check status with `gh pr view`.
-3. Extracts a Jira key from the PR body or branch and fetches the issue via Claude's
-   Atlassian MCP server (no Jira API token stored locally).
-4. Runs `claude -p` with the `caveman:caveman-review` skill, passing the diff, CI
-   failures, and Jira context.
-5. Posts a **pending** review to GitHub (via `gh`) with inline comments and a summary.
+3. Looks for a Jira key in the PR body or branch name. If it finds one, it fetches the
+   issue through the agent's Atlassian MCP server (no Jira token stored locally).
+4. Runs the agent (`claude -p`, or `cursor-agent`) with the diff, the CI failures, and
+   the Jira context.
+5. Posts a **pending** review to GitHub through `gh`: a summary plus inline comments.
 
-You then open the PR in the browser and submit (or edit) the review manually —
-`prcheck` never auto-submits.
+Then you open the PR in the browser and submit or edit the review by hand.
 
 ## Requirements
 
-- **Go 1.26+** (to build only).
-- **`gh` CLI**, authenticated — `gh auth login`.
-- **`claude` CLI** (Claude Code), authenticated, with the Atlassian MCP server
-  configured. The MCP server handles Jira — no Jira token needed locally.
+- **Go 1.26+**, to build.
+- **`gh` CLI**, authenticated (`gh auth login`).
+- An **agent CLI**:
+  - **`claude`** (Claude Code), authenticated, with the Atlassian MCP server set up if
+    you want Jira context. This is the default and the only one that reports token usage.
+  - **`cursor-agent`** (Cursor), if you set `PRCHECK_AGENT=cursor` or switch to it in the
+    app.
 
 ## Install
 
@@ -54,89 +72,98 @@ Or build locally:
 go build -o prcheck ./cmd/prcheck
 ```
 
-Prebuilt binaries for Linux/macOS/Windows are attached to each
+Prebuilt binaries for Linux, macOS, and Windows are attached to each
 [GitHub Release](https://github.com/KamilSupera/github-pullrequests-checkecker/releases).
 
 ## Configure
 
-No environment variables are required. All are optional:
+Nothing is required. Everything is optional:
 
 | Variable | Effect |
 |----------|--------|
-| `PRCHECK_AGENT` | Backend model CLI: `claude` (default) or `cursor` (uses `cursor-agent`). Cursor reports no token usage, so the footer shows call count only. |
-| `PRCHECK_DEBUG=1` | Route subprocess (`gh`/`claude`) output to the log for troubleshooting. |
-| `PRCHECK_FOCUS` | Comma-separated review aspects to emphasize, e.g. `security,performance,requirements,tests`. Empty = balanced review. |
+| `PRCHECK_AGENT` | Which agent to start with: `claude` (default) or `cursor`. You can also switch in the app with `A`. |
+| `PRCHECK_FOCUS` | Review aspects to emphasize, comma-separated, e.g. `security,performance,requirements,tests`. Empty means a balanced review. |
 | `PRCHECK_NOTIFY=1` | Send a desktop notification when a review finishes. |
-| `PRCHECK_CACHE_DIR` | Override where local snapshots/bookmarks/history are written (default: OS cache dir, see below). |
+| `PRCHECK_DEBUG=1` | Send subprocess (`gh`/agent) output to the log for troubleshooting. |
+| `PRCHECK_CACHE_DIR` | Where snapshots, bookmarks, and history are written. Defaults to the OS cache dir (see below). |
 
-**First-run Jira note:** if your MCP setup requires interactive consent on first tool
-use, run a one-time `claude` query that hits an Atlassian MCP tool (e.g. ask it to
-fetch any issue) before the first `prcheck` review, so the token cache is warm.
+**First Jira run:** if your MCP setup asks for consent the first time a tool is used, run
+one `claude` query that hits an Atlassian tool (ask it to fetch any issue) before your
+first review, so the token cache is warm.
 
 ## Use
 
 ```bash
-prcheck
+prcheck            # start the UI
+prcheck --version  # print version, commit, build date
 ```
 
-```bash
-prcheck --version   # print version/commit/build date
-```
+### Layout
+
+The tab bar sits on top. Below it, the PR list is on the left; on the right, the
+selected PR's detail sits above its comments. The session token and cost counter, any
+status message, and the key help run along the bottom.
+
+Three panes can hold focus: the list, the detail box, and the comments box. The focused
+box gets a bright border, and `j`/`k` scroll whichever one is focused. Cycle focus with
+`h`/`l` or the arrow keys.
 
 ### Keys
 
-**List view**
-
 | Key | Action |
 |-----|--------|
-| `j` / `k` (or `↓`/`↑`) | Move cursor |
-| `g` / `G` | Jump to top / bottom |
-| `Tab` / `Shift+Tab` | Switch tab (authored · review-requested · mentioned) |
-| `Space` | Load PR details / mark as seen |
+| `j` / `k` (or `↓`/`↑`) | Move the cursor, or scroll the focused pane |
+| `h` / `l` (or `←`/`→`) | Cycle focus between list, detail, and comments |
+| `g` / `G` | Jump to top / bottom of the list |
+| `Tab` / `Shift+Tab` | Switch tab (Mine, Review, Mentioned) |
+| `Space` | Load PR details, and mark it seen |
 | `Enter` | Run the review pipeline on the selected PR |
-| `d` | View the diff (`n`/`p` jump between files, `esc` back) |
-| `c` | View CI checks |
+| `d` | Open the diff (`n`/`p` jump between files, `esc` to go back) |
+| `c` | Open the CI checks |
 | `a` | Quick-approve (posts `LGTM`) |
-| `b` | Toggle bookmark on the selected PR |
-| `B` | Batch-review every bookmarked PR sequentially |
+| `b` | Bookmark, or remove the bookmark |
+| `B` | Review every bookmarked PR in sequence |
 | `R` | Open the PR's checks page in the browser |
 | `s` | Open the stats dashboard |
+| `A` | Switch the agent (Claude / Cursor) |
 | `o` | Open the PR in the browser |
 | `r` | Refresh the current tab |
 | `/` | Filter the list |
-| `J` / `K` | Scroll the comments pane |
-| `]` / `[` | Scroll the detail pane |
-| `esc` | Clear filter / dismiss the result view |
-| `q` / `Ctrl+C` | Quit (or cancel a running pipeline) |
+| `J` / `K` | Page the comments pane |
+| `]` / `[` | Page the detail pane |
+| `esc` | Clear the filter, or dismiss the result view |
+| `q` / `Ctrl+C` | Quit, or cancel a running pipeline |
 
-## Data & privacy
+The footer wraps onto more lines on a narrow terminal, so every key stays visible.
 
-`prcheck` reads and sends data on your behalf — worth knowing before public use:
+## Data and privacy
+
+`prcheck` reads and sends data on your behalf. Worth knowing before you use it:
 
 - **Read from GitHub** (via `gh`): PR lists, diffs, CI status, comments.
-- **Sent to Claude** (via `claude`): the PR **diff**, CI failure text, and Jira issue
-  text are passed to Claude Code to generate the review. PR code leaves your machine
-  for Anthropic's API exactly as it does for any other Claude Code usage.
-- **Jira**: fetched through the Atlassian MCP server that `claude` is configured
-  against — `prcheck` itself never touches Jira credentials.
+- **Sent to the agent**: the PR diff, the CI failure text, and the Jira issue text go to
+  Claude or Cursor to generate the review. Your PR code leaves the machine the same way
+  it does for any other Claude Code or Cursor usage.
+- **Jira**: fetched through the agent's Atlassian MCP server. `prcheck` never touches
+  Jira credentials.
 - **Posted to GitHub** (via `gh`): a *pending* review with inline comments. Nothing is
   submitted automatically.
-- **Stored locally**: tab snapshots, bookmarks, seen-markers, and review history under
+- **Stored locally**: tab snapshots, bookmarks, seen-markers, and review history, under
   your OS cache dir (`~/Library/Caches/prcheck` on macOS, `$XDG_CACHE_HOME/prcheck` or
   `~/.cache/prcheck` on Linux), or `PRCHECK_CACHE_DIR` if set. A failed review POST is
-  dumped to `$TMPDIR/prcheck-*.json` (mode `0600`) so the Claude output isn't lost.
-- **No secrets stored**: `prcheck` holds no API keys or tokens. Auth is delegated
-  entirely to `gh` and `claude`.
+  dumped to `$TMPDIR/prcheck-*.json` (mode `0600`) so the agent's output isn't lost.
+- **No secrets stored**: `prcheck` holds no API keys or tokens. Auth is delegated to `gh`
+  and the agent.
 
 ## Manual smoke test
 
 1. Open `prcheck`.
-2. Move the cursor onto a PR you own.
+2. Put the cursor on a PR you own.
 3. Press `Enter`.
 4. Wait for `Pending review #N posted.`
-5. Press `o` — the PR opens in your browser.
-6. On the **Files changed** tab the pending review appears at the top with all inline
-   comments. Submit it manually.
+5. Press `o`. The PR opens in your browser.
+6. On the Files changed tab the pending review is at the top with its inline comments.
+   Submit it by hand.
 
 ## Contributing
 
