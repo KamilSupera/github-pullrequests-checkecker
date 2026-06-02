@@ -63,6 +63,7 @@ No environment variables are required. All are optional:
 
 | Variable | Effect |
 |----------|--------|
+| `PRCHECK_AGENT` | Backend model CLI: `claude` (default) or `cursor` (uses `cursor-agent`). Cursor reports no token usage, so the footer shows call count only. |
 | `PRCHECK_DEBUG=1` | Route subprocess (`gh`/`claude`) output to the log for troubleshooting. |
 | `PRCHECK_FOCUS` | Comma-separated review aspects to emphasize, e.g. `security,performance,requirements,tests`. Empty = balanced review. |
 | `PRCHECK_NOTIFY=1` | Send a desktop notification when a review finishes. |

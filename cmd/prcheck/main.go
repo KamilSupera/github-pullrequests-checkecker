@@ -38,18 +38,21 @@ func main() {
 }
 
 func run() error {
-	if err := checkBinary("gh"); err != nil {
+	cfg, err := config.Load()
+	if err != nil {
 		return err
 	}
-	if err := checkBinary("claude"); err != nil {
-		return err
-	}
-	if err := checkGHAuth(); err != nil {
+	if err := claude.SelectAgent(cfg.Agent); err != nil {
 		return err
 	}
 
-	cfg, err := config.Load()
-	if err != nil {
+	if err := checkBinary("gh"); err != nil {
+		return err
+	}
+	if err := checkBinary(claude.AgentBinary()); err != nil {
+		return err
+	}
+	if err := checkGHAuth(); err != nil {
 		return err
 	}
 

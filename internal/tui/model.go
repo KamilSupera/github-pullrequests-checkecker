@@ -94,6 +94,9 @@ type Model struct {
 	viewingStats bool
 	statsVP      viewport.Model
 
+	selectingAgent bool // agent-picker overlay is open
+	agentChoice    int  // highlighted row in the agent picker
+
 	listH      int // visible height of the PR list pane
 	listOffset int // index of first visible line in renderList
 

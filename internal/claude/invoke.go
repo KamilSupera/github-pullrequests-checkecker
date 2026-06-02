@@ -5,11 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
 )
 
 func Invoke(ctx context.Context, prompt string) (*Review, error) {
-	out, err := runClaude(ctx, prompt)
+	out, err := runAgent(ctx, prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -31,22 +30,24 @@ type cliEnvelope struct {
 	} `json:"usage"`
 }
 
-// runClaude runs the claude CLI and returns its result text. It requests
-// JSON output so token usage can be recorded into the session total. When
-// stdout is a real result envelope its usage is folded in; otherwise (a
-// stubbed plain-text response in tests or the demo) the raw stdout is
-// returned unchanged and no usage is recorded.
-func runClaude(ctx context.Context, prompt string) (string, error) {
+// runAgent runs the selected agent CLI and returns its result text. It
+// requests JSON output so token usage can be recorded into the session
+// total. When stdout is a real result envelope its usage is folded in;
+// otherwise (a stubbed plain-text response in tests or the demo) the raw
+// stdout is returned unchanged and no usage is recorded.
+func runAgent(ctx context.Context, prompt string) (string, error) {
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, "claude", "-p", prompt, "--output-format", "json")
+	cmd := agentCommand(ctx, prompt)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("claude exec: %w (stderr: %s)", err, tail(stderr.String(), 500))
+		return "", fmt.Errorf("%s exec: %w (stderr: %s)", AgentBinary(), err, tail(stderr.String(), 500))
 	}
 
+	// Both claude and cursor envelopes set "type"; bare stub/legacy JSON
+	// does not, so it falls through to the raw-stdout path below.
 	var env cliEnvelope
-	if err := json.Unmarshal(stdout.Bytes(), &env); err == nil && env.Type == "result" {
+	if err := json.Unmarshal(stdout.Bytes(), &env); err == nil && env.Type != "" {
 		addUsage(Usage{
 			InputTokens:         env.Usage.InputTokens,
 			OutputTokens:        env.Usage.OutputTokens,
@@ -55,7 +56,7 @@ func runClaude(ctx context.Context, prompt string) (string, error) {
 			CostUSD:             env.TotalCost,
 		})
 		if env.IsError {
-			return "", fmt.Errorf("claude reported error: %s", tail(env.Result, 500))
+			return "", fmt.Errorf("%s reported error: %s", AgentName(), tail(env.Result, 500))
 		}
 		return env.Result, nil
 	}

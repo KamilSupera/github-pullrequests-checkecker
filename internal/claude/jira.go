@@ -27,7 +27,7 @@ type JiraMCPFetcher struct{}
 func (JiraMCPFetcher) FetchIssue(ctx context.Context, key string) (*jira.Issue, error) {
 	prompt := fmt.Sprintf(jiraPromptTemplate, key, key, key)
 
-	out, err := runClaude(ctx, prompt)
+	out, err := runAgent(ctx, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("claude jira fetch: %w", err)
 	}

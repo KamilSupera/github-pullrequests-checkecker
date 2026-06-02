@@ -12,6 +12,9 @@ type Config struct {
 	// the prompt. Common values: "security", "performance",
 	// "requirements", "tests". Empty = balanced review.
 	Focus []string
+
+	// Agent selects the backend model CLI: "claude" (default) or "cursor".
+	Agent string
 }
 
 // Load reads the runtime configuration from environment variables.
@@ -20,6 +23,7 @@ type Config struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		Debug: os.Getenv("PRCHECK_DEBUG") == "1",
+		Agent: strings.TrimSpace(os.Getenv("PRCHECK_AGENT")),
 	}
 	if f := strings.TrimSpace(os.Getenv("PRCHECK_FOCUS")); f != "" {
 		for _, part := range strings.Split(f, ",") {

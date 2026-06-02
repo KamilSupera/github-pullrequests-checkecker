@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/KamilSupera/github-pullrequests-checkecker/internal/cache"
+	"github.com/KamilSupera/github-pullrequests-checkecker/internal/claude"
 	"github.com/KamilSupera/github-pullrequests-checkecker/internal/pipeline"
 )
 
@@ -261,6 +263,42 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	// Agent picker overlay: pick the backend model CLI.
+	if m.selectingAgent {
+		agents := claude.Agents()
+		switch key {
+		case "esc", "A":
+			m.selectingAgent = false
+			return m, nil
+		case "ctrl+c":
+			m.cancel()
+			return m, tea.Quit
+		case "j", "down":
+			if m.agentChoice < len(agents)-1 {
+				m.agentChoice++
+			}
+			return m, nil
+		case "k", "up":
+			if m.agentChoice > 0 {
+				m.agentChoice--
+			}
+			return m, nil
+		case "enter":
+			name := agents[m.agentChoice]
+			bin := claude.BinaryForAgent(name)
+			if _, err := exec.LookPath(bin); err != nil {
+				m.statusMsg = fmt.Sprintf("%s not found on PATH — keeping %s", bin, claude.AgentName())
+				m.selectingAgent = false
+				return m, nil
+			}
+			_ = claude.SelectAgent(name)
+			m.statusMsg = "agent: " + claude.AgentName()
+			m.selectingAgent = false
+			return m, nil
+		}
+		return m, nil
+	}
+
 	// When the review-result pane is on screen for the current PR,
 	// j/k scroll it; Enter re-reviews; Esc dismisses.
 	if m.inResultView() {
@@ -471,6 +509,18 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		paneW, _ := paneInnerSize(m.termW, m.termH)
 		m.statsVP.SetContent(renderStats(m, paneW))
 		m.statsVP.GotoTop()
+		return m, nil
+
+	case "A":
+		// Open the agent picker, highlighting the current agent.
+		m.selectingAgent = true
+		m.agentChoice = 0
+		for i, name := range claude.Agents() {
+			if name == claude.AgentName() {
+				m.agentChoice = i
+				break
+			}
+		}
 		return m, nil
 
 	case "b":

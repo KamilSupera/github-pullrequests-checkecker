@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
@@ -124,6 +125,10 @@ func (m Model) View() string {
 	if m.filtering || m.filter != "" {
 		footer = m.renderFilterLine() + "\n" + footer
 	}
+	// Indent the whole footer (usage/cost, agent status, filter, key help)
+	// so it lines up with the left pane's content, which starts one cell
+	// past the box border — matching the PR-list column.
+	footer = lipgloss.NewStyle().MarginLeft(1).Render(footer)
 	if avail := m.termH - lipgloss.Height(header) - lipgloss.Height(footer); avail > 0 && paneH+2 > avail {
 		paneH = avail - 2
 		if paneH < 5 {
@@ -140,7 +145,16 @@ func (m Model) View() string {
 	m.statsVP.Height = paneH
 
 	var body string
-	if m.viewingStats {
+	if m.selectingAgent {
+		fullW := paneW*2 + 4 // left + right + borders
+		pickerPane := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(borderActiveColor).
+			Width(fullW - 2).
+			Height(paneH).
+			MaxHeight(paneH + 2)
+		body = pickerPane.Render(m.renderAgentPicker())
+	} else if m.viewingStats {
 		fullW := paneW*2 + 4 // left + right + borders
 		statsPane := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -203,6 +217,7 @@ func (m Model) renderFooter() string {
 			{"⏎", "review"},
 			{"Tab", "tab"},
 			{"o", "open"},
+			{"A", "agent"},
 			{"r", "refresh"},
 			{"q", "quit"},
 		}
@@ -211,7 +226,8 @@ func (m Model) renderFooter() string {
 	for _, it := range items {
 		parts = append(parts, keyCap.Render(it.key)+" "+keyHelp.Render(it.help))
 	}
-	return packLines(parts, "  ", m.termW)
+	// Leave one column for the footer's left margin (see View).
+	return packLines(parts, "  ", m.termW-1)
 }
 
 // packLines greedily joins parts with sep, wrapping to a new line whenever
@@ -244,21 +260,58 @@ func packLines(parts []string, sep string, width int) string {
 	return strings.Join(lines, "\n")
 }
 
+// renderAgentPicker renders the agent-selection overlay: one row per
+// selectable backend CLI, the highlighted row marked with a cursor, the
+// active agent flagged, and any missing binary called out.
+func (m Model) renderAgentPicker() string {
+	var b strings.Builder
+	b.WriteString(repoHeader.Render("◆ Select agent") + "\n")
+	b.WriteString(hint.Render("Backend model CLI used for reviews and Jira fetch.") + "\n\n")
+	cursorStyle := lipgloss.NewStyle().Foreground(colMauve).Bold(true)
+	for i, name := range claude.Agents() {
+		bin := claude.BinaryForAgent(name)
+		_, err := exec.LookPath(bin)
+		prefix := "  "
+		nameStyle := lipgloss.NewStyle().Foreground(colFG)
+		if i == m.agentChoice {
+			prefix = cursorStyle.Render("❯ ")
+			nameStyle = nameStyle.Bold(true)
+		}
+		line := prefix + nameStyle.Render(name) + dim.Render(" ("+bin+")")
+		if name == claude.AgentName() {
+			line += pass.Render("  ● current")
+		}
+		if err != nil {
+			line += fail.Render("  ✗ not installed")
+		}
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("\n" +
+		keyCap.Render("⏎") + " " + hint.Render("select") + "  " +
+		keyCap.Render("j/k") + " " + hint.Render("move") + "  " +
+		keyCap.Render("Esc") + " " + hint.Render("cancel"))
+	return b.String()
+}
+
 // renderUsageLine shows the cumulative Claude token usage and cost for
 // this session, rendered dim. Placed just above the key-help row.
 func renderUsageLine(u claude.Usage) string {
-	cached := u.CacheReadTokens + u.CacheCreationTokens
 	callWord := "calls"
 	if u.Calls == 1 {
 		callWord = "call"
 	}
 	label := lipgloss.NewStyle().Foreground(colMauve).Render("⛁")
-	body := lipgloss.NewStyle().Foreground(colSubtext).Render(fmt.Sprintf(
+	sub := lipgloss.NewStyle().Foreground(colSubtext)
+	if !claude.AgentRecordsUsage() {
+		// Cursor (and any backend without usage data) — report calls only.
+		return label + sub.Render(fmt.Sprintf(" %d %s · tokens n/a (%s)", u.Calls, callWord, claude.AgentName()))
+	}
+	cached := u.CacheReadTokens + u.CacheCreationTokens
+	return label + sub.Render(fmt.Sprintf(
 		" %s in · %s out · %s cached · $%.4f · %d %s",
 		fmtTokens(u.InputTokens), fmtTokens(u.OutputTokens), fmtTokens(cached),
 		u.CostUSD, u.Calls, callWord,
 	))
-	return label + body
 }
 
 // fmtTokens renders a token count compactly: 1234 → "1.2k", 2_000_000 → "2.0M".
