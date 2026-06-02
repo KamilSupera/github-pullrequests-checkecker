@@ -170,6 +170,11 @@ The footer wraps onto more lines on a narrow terminal, so every key stays visibl
 See [CONTRIBUTING.md](CONTRIBUTING.md). Run `go build ./...`, `go vet ./...`,
 `go test -race ./...`, and `gofmt -l .` before opening a PR.
 
+## Thanks
+
+[@kaniak274](https://github.com/kaniak274) for QA and for the idea of showing
+token usage in the UI.
+
 ## License
 
 [MIT](LICENSE) © Kamil Supera
