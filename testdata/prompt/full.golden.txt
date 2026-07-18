@@ -1,5 +1,3 @@
-Use skill caveman:caveman-review.
-
 PR: Add caching
 Branch: feat/cache -> develop
 Author: kamil

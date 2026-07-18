@@ -32,17 +32,20 @@ func (JiraMCPFetcher) FetchIssue(ctx context.Context, key string) (*jira.Issue, 
 		return nil, fmt.Errorf("claude jira fetch: %w", err)
 	}
 
-	doc := findJSONObject(out)
-	if doc == "" {
-		return nil, fmt.Errorf("no JSON object in claude jira response")
-	}
-
 	var iss jira.Issue
-	if err := json.Unmarshal([]byte(doc), &iss); err != nil {
-		return nil, fmt.Errorf("parse jira issue JSON: %w", err)
-	}
-	if strings.TrimSpace(iss.Key) == "" {
-		return nil, fmt.Errorf("jira issue missing key")
+	found := decodeFirstObject(out, func(doc string) bool {
+		var cand jira.Issue
+		if err := json.Unmarshal([]byte(doc), &cand); err != nil {
+			return false
+		}
+		if strings.TrimSpace(cand.Key) == "" {
+			return false
+		}
+		iss = cand
+		return true
+	})
+	if !found {
+		return nil, fmt.Errorf("no parseable jira issue JSON in %s output (tail: %q)", AgentName(), tail(out, 300))
 	}
 	return &iss, nil
 }

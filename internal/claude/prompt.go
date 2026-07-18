@@ -68,7 +68,6 @@ Return ONLY JSON matching this schema (no prose before or after):
 
 func BuildPrompt(in PromptInput) string {
 	var b strings.Builder
-	b.WriteString("Use skill caveman:caveman-review.\n\n")
 	fmt.Fprintf(&b, "PR: %s\n", in.Title)
 	fmt.Fprintf(&b, "Branch: %s -> %s\n", in.HeadRef, in.BaseRef)
 	fmt.Fprintf(&b, "Author: %s\n\n", in.Author)

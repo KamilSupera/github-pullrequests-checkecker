@@ -36,21 +36,26 @@ var validAspectStatus = map[string]bool{
 	"ok": true, "issue": true, "missing": true, "n/a": true,
 }
 
-// ParseReview parses Claude's JSON output. Tolerates leading/trailing
-// prose by finding the first balanced JSON object in the input.
+// ParseReview parses Claude's JSON output. Tolerates prose around the
+// JSON — including stray braces inside that prose — by trying every
+// balanced {...} candidate in order and accepting the first one that
+// unmarshals as a Review with a non-empty summary (issue #12).
 func ParseReview(raw []byte) (*Review, error) {
-	doc := findJSONObject(string(raw))
-	if doc == "" {
-		return nil, fmt.Errorf("no JSON object found in claude output")
-	}
-
+	s := string(raw)
 	var r Review
-	if err := json.Unmarshal([]byte(doc), &r); err != nil {
-		return nil, fmt.Errorf("unmarshal review: %w", err)
-	}
-
-	if strings.TrimSpace(r.Summary) == "" {
-		return nil, fmt.Errorf("review summary missing or empty")
+	found := decodeFirstObject(s, func(doc string) bool {
+		var cand Review
+		if err := json.Unmarshal([]byte(doc), &cand); err != nil {
+			return false
+		}
+		if strings.TrimSpace(cand.Summary) == "" {
+			return false
+		}
+		r = cand
+		return true
+	})
+	if !found {
+		return nil, fmt.Errorf("no parseable review JSON in %s output (tail: %q)", AgentName(), tail(s, 300))
 	}
 	for i, a := range r.Aspects {
 		if a.Name == "" {
@@ -74,11 +79,28 @@ func ParseReview(raw []byte) (*Review, error) {
 	return &r, nil
 }
 
-func findJSONObject(s string) string {
-	start := strings.Index(s, "{")
-	if start < 0 {
-		return ""
+// decodeFirstObject scans s for balanced {...} candidates in order and
+// returns true once decode accepts one. Skipping rejected candidates is
+// what makes stray braces in prose before the real JSON harmless.
+func decodeFirstObject(s string, decode func(doc string) bool) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] != '{' {
+			continue
+		}
+		doc := balancedObjectAt(s, i)
+		if doc == "" {
+			continue
+		}
+		if decode(doc) {
+			return true
+		}
 	}
+	return false
+}
+
+// balancedObjectAt returns the balanced {...} substring starting at
+// s[start] (which must be '{'), or "" if it never closes.
+func balancedObjectAt(s string, start int) string {
 	depth := 0
 	inStr := false
 	esc := false

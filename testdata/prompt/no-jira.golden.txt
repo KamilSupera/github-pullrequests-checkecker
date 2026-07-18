@@ -1,5 +1,3 @@
-Use skill caveman:caveman-review.
-
 PR: Refactor
 Branch: refactor/x -> main
 Author: alice

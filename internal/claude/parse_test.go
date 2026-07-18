@@ -1,6 +1,9 @@
 package claude
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseReview_Valid(t *testing.T) {
 	raw := `{
@@ -33,6 +36,53 @@ func TestParseReview_ProseAroundJSON(t *testing.T) {
 	}
 	if r.Summary != "ok" {
 		t.Errorf("Summary = %q", r.Summary)
+	}
+}
+
+// Regression for issue #12: prose before the JSON containing a brace
+// snippet must not be picked up as the review object.
+func TestParseReview_BraceInProseBeforeJSON(t *testing.T) {
+	raw := "The diff changes `Result{err}` handling in two places.\n\n" +
+		`{"summary":"Looks fine.","comments":[]}`
+	r, err := ParseReview([]byte(raw))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if r.Summary != "Looks fine." {
+		t.Errorf("Summary = %q", r.Summary)
+	}
+}
+
+func TestParseReview_EmptyObjectInProseBeforeJSON(t *testing.T) {
+	raw := "Interface{} is used here.\n" + `{"summary":"ok","comments":[]}`
+	r, err := ParseReview([]byte(raw))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if r.Summary != "ok" {
+		t.Errorf("Summary = %q", r.Summary)
+	}
+}
+
+func TestParseReview_FencedJSON(t *testing.T) {
+	raw := "Here you go:\n```json\n" + `{"summary":"ok","comments":[]}` + "\n```\n"
+	r, err := ParseReview([]byte(raw))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if r.Summary != "ok" {
+		t.Errorf("Summary = %q", r.Summary)
+	}
+}
+
+func TestParseReview_NoJSON_ErrorIncludesOutput(t *testing.T) {
+	raw := "I could not produce a review this time."
+	_, err := ParseReview([]byte(raw))
+	if err == nil {
+		t.Fatal("expected error for output without JSON")
+	}
+	if !strings.Contains(err.Error(), "could not produce a review") {
+		t.Errorf("error should include output tail, got: %v", err)
 	}
 }
 
