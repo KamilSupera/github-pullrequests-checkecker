@@ -32,6 +32,9 @@ https://github.com/user-attachments/assets/3203ce5e-6b75-4a7f-956f-cc453ca0255e
 - **Stats dashboard**: counts per tab, per repo, and stale-PR age.
 - **Desktop notifications** when a review finishes (opt-in).
 - **Pick your agent**: Claude or Cursor, switched live from inside the app.
+- **Pick your model per review**: pressing `Enter` opens a model picker for the active
+  agent (e.g. Opus, Sonnet, Haiku for Claude) before the review starts. The `default`
+  entry shows which model the CLI would use on its own.
 - **Token and cost counter** for the session (Claude reports usage; Cursor does not).
 - **Jira context**: pulls the linked issue through Claude's Atlassian MCP server, so the
   review knows what the PR was supposed to do.
@@ -117,7 +120,7 @@ box gets a bright border, and `j`/`k` scroll whichever one is focused. Cycle foc
 | `g` / `G` | Jump to top / bottom of the list |
 | `Tab` / `Shift+Tab` | Switch tab (Mine, Review, Mentioned) |
 | `Space` | Load PR details, and mark it seen |
-| `Enter` | Run the review pipeline on the selected PR |
+| `Enter` | Pick a model, then run the review pipeline on the selected PR |
 | `d` | Open the diff (`n`/`p` jump between files, `esc` to go back) |
 | `c` | Open the CI checks |
 | `a` | Quick-approve (posts `LGTM`) |

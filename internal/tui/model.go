@@ -97,6 +97,10 @@ type Model struct {
 	selectingAgent bool // agent-picker overlay is open
 	agentChoice    int  // highlighted row in the agent picker
 
+	selectingModel bool   // model-picker overlay is open (pre-review)
+	modelChoice    int    // highlighted row in the model picker
+	pendingReview  string // PR URL to review once a model is picked
+
 	listH      int // visible height of the PR list pane
 	listOffset int // index of first visible line in renderList
 

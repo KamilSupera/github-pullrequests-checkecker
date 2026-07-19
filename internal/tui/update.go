@@ -299,6 +299,44 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Model picker overlay: pick the model for this review, then start it.
+	if m.selectingModel {
+		models := claude.Models()
+		switch key {
+		case "esc":
+			m.selectingModel = false
+			m.pendingReview = ""
+			return m, nil
+		case "ctrl+c":
+			m.cancel()
+			return m, tea.Quit
+		case "j", "down":
+			if m.modelChoice < len(models)-1 {
+				m.modelChoice++
+			}
+			return m, nil
+		case "k", "up":
+			if m.modelChoice > 0 {
+				m.modelChoice--
+			}
+			return m, nil
+		case "enter":
+			claude.SelectModel(models[m.modelChoice])
+			url := m.pendingReview
+			m.selectingModel = false
+			m.pendingReview = ""
+			ctx, cancel := context.WithCancel(m.ctx)
+			m.pipeCancel = cancel
+			m.running = true
+			m.steps = nil
+			m.lastReview = nil
+			m.resultOffset = 0
+			m.statusMsg = "model: " + claude.ModelName()
+			return m, m.runPipeline(ctx, url)
+		}
+		return m, nil
+	}
+
 	// When the review-result pane is on screen for the current PR,
 	// j/k scroll it; Enter re-reviews; Esc dismisses.
 	if m.inResultView() {
@@ -346,19 +384,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			_ = m.openURL(pr.URL)
 			return m, nil
 		case "enter":
-			// fall through to the standard enter handler below by clearing
-			// the lastReview so re-review is initiated.
+			// Re-review: pick the model first, same as a fresh review.
 			pr, ok := m.currentPR()
 			if !ok {
 				return m, nil
 			}
-			ctx, cancel := context.WithCancel(m.ctx)
-			m.pipeCancel = cancel
-			m.running = true
-			m.steps = nil
-			m.lastReview = nil
-			m.resultOffset = 0
-			return m, m.runPipeline(ctx, pr.URL)
+			return m.openModelPicker(pr.URL), nil
 		}
 		return m, nil
 	}
@@ -625,15 +656,25 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if !ok {
 			return m, nil
 		}
-		ctx, cancel := context.WithCancel(m.ctx)
-		m.pipeCancel = cancel
-		m.running = true
-		m.steps = nil
-		m.lastReview = nil
-		return m, m.runPipeline(ctx, pr.URL)
+		return m.openModelPicker(pr.URL), nil
 	}
 
 	return m, nil
+}
+
+// openModelPicker opens the pre-review model overlay for the given PR,
+// highlighting the currently selected model.
+func (m Model) openModelPicker(url string) Model {
+	m.selectingModel = true
+	m.pendingReview = url
+	m.modelChoice = 0
+	for i, name := range claude.Models() {
+		if name == claude.ModelName() {
+			m.modelChoice = i
+			break
+		}
+	}
+	return m
 }
 
 // inResultView reports whether the right column is currently showing

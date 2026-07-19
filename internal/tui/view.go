@@ -154,6 +154,15 @@ func (m Model) View() string {
 			Height(paneH).
 			MaxHeight(paneH + 2)
 		body = pickerPane.Render(m.renderAgentPicker())
+	} else if m.selectingModel {
+		fullW := paneW*2 + 4 // left + right + borders
+		pickerPane := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(borderActiveColor).
+			Width(fullW - 2).
+			Height(paneH).
+			MaxHeight(paneH + 2)
+		body = pickerPane.Render(m.renderModelPicker())
 	} else if m.viewingStats {
 		fullW := paneW*2 + 4 // left + right + borders
 		statsPane := lipgloss.NewStyle().
@@ -288,6 +297,36 @@ func (m Model) renderAgentPicker() string {
 	}
 	b.WriteString("\n" +
 		keyCap.Render("⏎") + " " + hint.Render("select") + "  " +
+		keyCap.Render("j/k") + " " + hint.Render("move") + "  " +
+		keyCap.Render("Esc") + " " + hint.Render("cancel"))
+	return b.String()
+}
+
+// renderModelPicker renders the pre-review model-selection overlay: one
+// row per model of the active agent; Enter starts the review with it.
+func (m Model) renderModelPicker() string {
+	var b strings.Builder
+	b.WriteString(repoHeader.Render("◆ Select model") + "\n")
+	b.WriteString(hint.Render("Model for this review (agent: "+claude.AgentName()+").") + "\n\n")
+	cursorStyle := lipgloss.NewStyle().Foreground(colMauve).Bold(true)
+	for i, name := range claude.Models() {
+		prefix := "  "
+		nameStyle := lipgloss.NewStyle().Foreground(colFG)
+		if i == m.modelChoice {
+			prefix = cursorStyle.Render("❯ ")
+			nameStyle = nameStyle.Bold(true)
+		}
+		line := prefix + nameStyle.Render(name)
+		if desc := claude.ModelDesc(name); desc != "" {
+			line += dim.Render("  " + desc)
+		}
+		if name == claude.ModelName() {
+			line += pass.Render("  ● current")
+		}
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("\n" +
+		keyCap.Render("⏎") + " " + hint.Render("start review") + "  " +
 		keyCap.Render("j/k") + " " + hint.Render("move") + "  " +
 		keyCap.Render("Esc") + " " + hint.Render("cancel"))
 	return b.String()
