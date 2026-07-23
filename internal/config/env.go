@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -15,6 +16,10 @@ type Config struct {
 
 	// Agent selects the backend model CLI: "claude" (default) or "cursor".
 	Agent string
+
+	// WatchMinutes is the auto-refresh interval for Watch mode, in
+	// minutes. Read from PRCHECK_WATCH; defaults to 5, clamped to >=1.
+	WatchMinutes int
 }
 
 // Load reads the runtime configuration from environment variables.
@@ -30,6 +35,12 @@ func Load() (*Config, error) {
 			if p := strings.TrimSpace(part); p != "" {
 				cfg.Focus = append(cfg.Focus, p)
 			}
+		}
+	}
+	cfg.WatchMinutes = 5
+	if w := strings.TrimSpace(os.Getenv("PRCHECK_WATCH")); w != "" {
+		if n, err := strconv.Atoi(w); err == nil && n >= 1 {
+			cfg.WatchMinutes = n
 		}
 	}
 	return cfg, nil
