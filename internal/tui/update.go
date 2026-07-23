@@ -16,6 +16,42 @@ import (
 	"github.com/KamilSupera/github-pullrequests-checkecker/internal/pipeline"
 )
 
+// tickCmd schedules the next watch-mode refresh. gen is the generation
+// this tick belongs to; the handler drops ticks whose gen is stale.
+func tickCmd(gen, min int) tea.Cmd {
+	return tea.Tick(time.Duration(min)*time.Minute, func(time.Time) tea.Msg {
+		return watchTickMsg{gen: gen}
+	})
+}
+
+// notifyChanges fires desktop notifications for detected PR changes.
+// A new URL in the Review tab means a review was (re-)requested. More
+// than three changes collapse into a single summary to avoid a storm.
+func notifyChanges(tab Tab, changes []cache.Change) {
+	if len(changes) == 0 {
+		return
+	}
+	if len(changes) > 3 {
+		cache.Notify(
+			fmt.Sprintf("prcheck — %s", tab.Label()),
+			fmt.Sprintf("%d PRs changed", len(changes)),
+		)
+		return
+	}
+	for _, c := range changes {
+		var title string
+		switch {
+		case c.IsNew && tab == TabReview:
+			title = "Review requested"
+		case c.IsNew:
+			title = "New PR"
+		default:
+			title = "Updated"
+		}
+		cache.Notify(title, fmt.Sprintf("%s#%d %s", c.PR.Repo, c.PR.Number, c.PR.Title))
+	}
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
@@ -84,15 +120,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.loadErr[msg.tab] = msg.err
 		} else {
-			// Compute deltas vs the cached snapshot before overwriting it,
-			// then fire desktop notifications if PRCHECK_NOTIFY=1.
+			// Compute deltas vs the on-disk snapshot (the previous load,
+			// saved below) then fire desktop notifications if
+			// PRCHECK_NOTIFY=1. Disk, not m.prsByTab, because the manual
+			// 'r' refresh nils the in-memory list before reloading — that
+			// would make every PR look new. The first live load per tab
+			// only seeds the baseline (no burst).
 			if os.Getenv("PRCHECK_NOTIFY") == "1" {
-				prev := cache.Load(tabCacheKey(msg.tab))
-				if changed := cache.DetectChanges(prev, msg.prs); len(changed) > 0 {
-					cache.Notify(
-						fmt.Sprintf("prcheck — %s", msg.tab.Label()),
-						fmt.Sprintf("%d PRs updated since last fetch", len(changed)),
-					)
+				if !m.seededNotify[msg.tab] {
+					m.seededNotify[msg.tab] = true
+				} else {
+					old := cache.Load(tabCacheKey(msg.tab))
+					notifyChanges(msg.tab, cache.DetectChanges(old, msg.prs))
 				}
 			}
 			sort.Slice(msg.prs, func(i, j int) bool {
@@ -103,6 +142,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m = m.scrollListIntoView()
 		return m, nil
+
+	case watchTickMsg:
+		// Drop stale ticks (watch was toggled off, or a newer loop
+		// superseded this one). Otherwise refresh all tabs and
+		// reschedule. Does NOT nil the lists, so no blank-flash.
+		if msg.gen != m.watchGen || !m.watching {
+			return m, nil
+		}
+		return m, tea.Batch(
+			m.loadTab(TabMine),
+			m.loadTab(TabReview),
+			m.loadTab(TabMentioned),
+			tickCmd(m.watchGen, m.watchMin),
+		)
 
 	case prDetailMsg:
 		delete(m.loadingDetail, msg.url)
@@ -635,6 +688,16 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.listOffset = 0
 		m.commentsOffset = 0
 		return m, m.loadTab(m.tab)
+
+	case "w":
+		m.watching = !m.watching
+		if m.watching {
+			m.watchGen++
+			m.statusMsg = fmt.Sprintf("watch on (%dm)", m.watchMin)
+			return m, tickCmd(m.watchGen, m.watchMin)
+		}
+		m.statusMsg = "watch off"
+		return m, nil
 
 	case "/":
 		m.filtering = true

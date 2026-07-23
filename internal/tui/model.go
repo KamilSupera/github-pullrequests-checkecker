@@ -124,9 +124,15 @@ type Model struct {
 
 	spinner spinner.Model
 	err     error
+
+	// Watch mode: periodic auto-refresh + desktop notifications.
+	watching     bool         // is watch currently on
+	watchMin     int          // tick interval in minutes (>=1)
+	watchGen     int          // generation guard against duplicate tickers
+	seededNotify map[Tab]bool // tab has had its first live load (baseline)
 }
 
-func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, qr quickReviewFn, rp runPipelineFn, open openFn) Model {
+func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, qr quickReviewFn, rp runPipelineFn, open openFn, watchMin int) Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.MiniDot
 	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffb000"))
@@ -154,6 +160,8 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, qr quickRev
 		loadErr:       map[Tab]error{},
 		seen:          cache.LoadSeen(),
 		bookmarks:     cache.LoadBookmarks(),
+		watchMin:      watchMin,
+		seededNotify:  map[Tab]bool{},
 		details:       map[string]*github.PRDetail{},
 		diffs:         map[string]string{},
 		loadingDetail: map[string]bool{},

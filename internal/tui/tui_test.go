@@ -45,7 +45,7 @@ func TestModel_ShowsMineTab(t *testing.T) {
 	}
 	open := func(url string) error { return nil }
 
-	m := NewModel(loader, detail, diff, checks, quickReview, runPipe, open)
+	m := NewModel(loader, detail, diff, checks, quickReview, runPipe, open, 5)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
 
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
@@ -73,4 +73,40 @@ func contains(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+func TestWatchToggleAndStaleTick(t *testing.T) {
+	noPRs := func(ctx context.Context, q github.Query) ([]github.PR, error) { return nil, nil }
+	noDetail := func(ctx context.Context, url string) (*github.PRDetail, error) { return &github.PRDetail{}, nil }
+	noDiff := func(ctx context.Context, url string) (string, error) { return "", nil }
+	noChecks := func(ctx context.Context, url string) (string, error) { return "", nil }
+	noQR := func(ctx context.Context, url, event, body string) (int64, error) { return 0, nil }
+	noPipe := func(ctx context.Context, url string, emit func(pipeline.Event)) (*pipeline.Result, error) {
+		return nil, nil
+	}
+	noOpen := func(url string) error { return nil }
+
+	m := NewModel(noPRs, noDetail, noDiff, noChecks, noQR, noPipe, noOpen, 5)
+
+	// Pressing 'w' turns watch on and returns a tick command.
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	mw := updated.(Model)
+	if !mw.watching {
+		t.Fatal("pressing w should enable watching")
+	}
+	if cmd == nil {
+		t.Fatal("enabling watch should return a tick command")
+	}
+
+	// A tick from a stale generation is a no-op (no reschedule).
+	_, staleCmd := mw.Update(watchTickMsg{gen: mw.watchGen - 1})
+	if staleCmd != nil {
+		t.Fatal("stale-gen tick should return nil command")
+	}
+
+	// Pressing 'w' again turns watch off.
+	updated2, _ := mw.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	if updated2.(Model).watching {
+		t.Fatal("pressing w again should disable watching")
+	}
 }

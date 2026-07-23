@@ -97,7 +97,7 @@ func run() error {
 		return github.PostQuickReview(ctx, url, event, body)
 	}
 
-	model := tui.NewModel(loader, detailFn, diffFn, checksFn, quickReviewFn, runPipe, openInBrowser)
+	model := tui.NewModel(loader, detailFn, diffFn, checksFn, quickReviewFn, runPipe, openInBrowser, cfg.WatchMinutes)
 	program = tea.NewProgram(model, tea.WithAltScreen())
 	_, err = program.Run()
 	return err

@@ -87,8 +87,14 @@ Nothing is required. Everything is optional:
 | `PRCHECK_AGENT` | Which agent to start with: `claude` (default) or `cursor`. You can also switch in the app with `A`. |
 | `PRCHECK_FOCUS` | Review aspects to emphasize, comma-separated, e.g. `security,performance,requirements,tests`. Empty means a balanced review. |
 | `PRCHECK_NOTIFY=1` | Send a desktop notification when a review finishes. |
+| `PRCHECK_WATCH` | Auto-refresh interval in minutes for Watch mode (default 5). |
 | `PRCHECK_DEBUG=1` | Send subprocess (`gh`/agent) output to the log for troubleshooting. |
 | `PRCHECK_CACHE_DIR` | Where snapshots, bookmarks, and history are written. Defaults to the OS cache dir (see below). |
+
+**Watch mode** (`w` key) auto-refreshes all tabs every `PRCHECK_WATCH` minutes (default 5).
+When combined with `PRCHECK_NOTIFY=1`, it sends desktop notifications: "Review requested"
+when a PR (re-)appears in the Review tab, "New PR" for new PRs elsewhere, and "Updated"
+when a tracked PR changes.
 
 **First Jira run:** if your MCP setup asks for consent the first time a tool is used, run
 one `claude` query that hits an Atlassian tool (ask it to fetch any issue) before your
@@ -131,6 +137,7 @@ box gets a bright border, and `j`/`k` scroll whichever one is focused. Cycle foc
 | `A` | Switch the agent (Claude / Cursor) |
 | `o` | Open the PR in the browser |
 | `r` | Refresh the current tab |
+| `w` | Toggle Watch mode (auto-refresh + desktop notifications) |
 | `/` | Filter the list |
 | `J` / `K` | Page the comments pane |
 | `]` / `[` | Page the detail pane |

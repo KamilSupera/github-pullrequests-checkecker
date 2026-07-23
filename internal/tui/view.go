@@ -230,6 +230,11 @@ func (m Model) renderFooter() string {
 			{"r", "refresh"},
 			{"q", "quit"},
 		}
+		wLabel := "watch:off"
+		if m.watching {
+			wLabel = "watch:on"
+		}
+		items = append(items, kh{"w", wLabel})
 	}
 	var parts []string
 	for _, it := range items {
