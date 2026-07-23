@@ -28,7 +28,10 @@ https://github.com/user-attachments/assets/3203ce5e-6b75-4a7f-956f-cc453ca0255e
 - **Quick-approve** that posts an `LGTM` approval without leaving the list.
 - **Bookmarks** and **batch review** to queue several PRs and review them in a row.
 - **Filter** the list by title, repo, branch, or author.
-- **New-since-you-last-looked** markers so you can tell what changed.
+- **State indicators** on every row: `✦` fresh, `•` updated since you last looked, `·` seen,
+  plus `★` bookmarked and `✓` reviewed — with a legend under the tabs.
+- **Watch mode** (`w`): auto-refresh all queues every few minutes and, opt-in, get a desktop
+  notification when a review is requested, a new PR shows up, or a tracked PR changes.
 - **Stats dashboard**: counts per tab, per repo, and stale-PR age.
 - **Desktop notifications** when a review finishes (opt-in).
 - **Pick your agent**: Claude or Cursor, switched live from inside the app.
