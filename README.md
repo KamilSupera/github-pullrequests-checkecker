@@ -111,6 +111,20 @@ Three panes can hold focus: the list, the detail box, and the comments box. The 
 box gets a bright border, and `j`/`k` scroll whichever one is focused. Cycle focus with
 `h`/`l` or the arrow keys.
 
+### List indicators
+
+Each PR row starts with a two-character state gutter:
+
+| glyph | meaning |
+|-------|---------|
+| `✦` | fresh — you have never opened this PR |
+| `•` | updated — opened before, new activity since |
+| `·` | seen — opened, nothing new |
+| `★` | bookmarked |
+| `✓` | you posted a review on it |
+
+The first column is always one of `✦`/`•`/`·`; the second shows `★` (or `✓` if reviewed and not bookmarked).
+
 ### Keys
 
 | Key | Action |
