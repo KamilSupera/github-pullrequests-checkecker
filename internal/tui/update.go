@@ -196,6 +196,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Summary:  msg.summary,
 				Comments: len(msg.comments),
 			})
+			if m.reviewed == nil {
+				m.reviewed = map[string]bool{}
+			}
+			m.reviewed[msg.url] = true
 		}
 		return m, nil
 

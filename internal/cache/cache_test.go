@@ -161,3 +161,14 @@ func TestDetectChanges(t *testing.T) {
 		t.Errorf("c is a new URL, IsNew should be true")
 	}
 }
+
+func TestSeenOpened(t *testing.T) {
+	s := &SeenStore{URLs: map[string]time.Time{}}
+	if s.Opened("x") {
+		t.Error("unknown url should not report opened")
+	}
+	s.Mark("x")
+	if !s.Opened("x") {
+		t.Error("marked url should report opened")
+	}
+}

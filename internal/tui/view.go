@@ -114,7 +114,7 @@ func (m Model) View() string {
 	// is actually left. The footer grows when a transient status message
 	// or active filter line is shown; without this the total would exceed
 	// termH and alt-screen would clip the body's bottom border.
-	header := m.renderTabs()
+	header := m.renderTabs() + "\n" + m.renderLegend()
 	footer := m.renderFooter()
 	if u := claude.SessionUsage(); u.Calls > 0 {
 		footer = renderUsageLine(u) + "\n" + footer
@@ -408,6 +408,20 @@ func (m Model) renderTabs() string {
 	return strings.Join(parts, dim.Render(" │ "))
 }
 
+// renderLegend is the one-line key for the list gutter glyphs.
+func (m Model) renderLegend() string {
+	c := func(col lipgloss.Color, s string) string {
+		return lipgloss.NewStyle().Foreground(col).Render(s)
+	}
+	return "  " + strings.Join([]string{
+		c(colBlue, "✦") + hint.Render(" new"),
+		c(colPeach, "•") + hint.Render(" upd"),
+		dim.Render("·") + hint.Render(" seen"),
+		c(colGreen, "✓") + hint.Render(" reviewed"),
+		c(colYellow, "★") + hint.Render(" saved"),
+	}, "  ")
+}
+
 func (m Model) renderList() string {
 	prs := m.prsByTab[m.tab]
 	if err := m.loadErr[m.tab]; err != nil {
@@ -463,7 +477,7 @@ func (m Model) renderList() string {
 // and returns the display-line index of the cursor.
 func (m Model) listLines() (lines []string, cursorLine int) {
 	paneW, _ := paneInnerSize(m.termW, m.termH)
-	titleW := paneW - 17
+	titleW := paneW - 18 // extra column for the 2-char state gutter
 	if titleW < 10 {
 		titleW = 10
 	}
@@ -471,19 +485,31 @@ func (m Model) listLines() (lines []string, cursorLine int) {
 	groups := groupByRepo(prs)
 	idx := 0
 	cursorStyle := lipgloss.NewStyle().Foreground(colMauve).Bold(true)
-	newDot := lipgloss.NewStyle().Foreground(colPeach).Bold(true).Render("•")
 	for _, g := range groups {
 		lines = append(lines, repoHeader.Render("● "+truncate(g.name, paneW-4)))
 		for _, pr := range g.prs {
 			active := idx == m.cursor
 			isNew := m.isPRNew(pr)
-			marker := " "
-			if isNew {
-				marker = newDot
+			st := m.prStateOf(pr)
+			var col1 string
+			switch {
+			case st.fresh:
+				col1 = lipgloss.NewStyle().Foreground(colBlue).Bold(true).Render("✦")
+			case st.updated:
+				col1 = lipgloss.NewStyle().Foreground(colPeach).Bold(true).Render("•")
+			default: // seen
+				col1 = dim.Render("·")
 			}
-			if m.bookmarks != nil && m.bookmarks.Has(pr.URL) {
-				marker = lipgloss.NewStyle().Foreground(colYellow).Render("★")
+			var col2 string
+			switch {
+			case st.bookmarked:
+				col2 = lipgloss.NewStyle().Foreground(colYellow).Render("★")
+			case st.reviewed:
+				col2 = lipgloss.NewStyle().Foreground(colGreen).Render("✓")
+			default:
+				col2 = " "
 			}
+			marker := col1 + col2
 			dateStr := fmtPRDate(pr.CreatedAt)
 			var prefix, date, num, title string
 			if active {
@@ -532,6 +558,34 @@ func (m Model) isPRNew(pr github.PR) bool {
 	}
 	t, _ := time.Parse(time.RFC3339, pr.UpdatedAt)
 	return m.seen.IsNew(pr.URL, t)
+}
+
+// prState is the display state of one PR row. Exactly one of
+// fresh/updated/seen is true; reviewed and bookmarked are independent.
+type prState struct {
+	fresh, updated, seen bool
+	reviewed             bool
+	bookmarked           bool
+}
+
+// prStateOf classifies a PR for the list gutter. Pure: reads only the
+// seen/reviewed/bookmark stores.
+func (m Model) prStateOf(pr github.PR) prState {
+	var st prState
+	switch {
+	case m.seen == nil || !m.seen.Opened(pr.URL):
+		st.fresh = true
+	default:
+		t, _ := time.Parse(time.RFC3339, pr.UpdatedAt)
+		if m.seen.IsNew(pr.URL, t) {
+			st.updated = true
+		} else {
+			st.seen = true
+		}
+	}
+	st.reviewed = m.reviewed[pr.URL]
+	st.bookmarked = m.bookmarks != nil && m.bookmarks.Has(pr.URL)
+	return st
 }
 
 type repoGroup struct {

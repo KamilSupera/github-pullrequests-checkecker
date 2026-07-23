@@ -118,6 +118,7 @@ type Model struct {
 
 	seen      *cache.SeenStore
 	bookmarks *cache.BookmarkStore
+	reviewed  map[string]bool // PR URLs the user has posted a review on
 
 	termW int // last reported terminal width
 	termH int // last reported terminal height
@@ -162,6 +163,7 @@ func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, qr quickRev
 		bookmarks:     cache.LoadBookmarks(),
 		watchMin:      watchMin,
 		seededNotify:  map[Tab]bool{},
+		reviewed:      reviewedFromHistory(),
 		details:       map[string]*github.PRDetail{},
 		diffs:         map[string]string{},
 		loadingDetail: map[string]bool{},
@@ -243,4 +245,16 @@ func (m Model) filteredPRs() []github.PR {
 		}
 	}
 	return out
+}
+
+// reviewedFromHistory builds the set of PR URLs the user has posted a
+// review on, from the persisted review history. Always non-nil.
+func reviewedFromHistory() map[string]bool {
+	set := map[string]bool{}
+	for _, e := range cache.LoadHistory(0) {
+		if e.PRURL != "" {
+			set[e.PRURL] = true
+		}
+	}
+	return set
 }
