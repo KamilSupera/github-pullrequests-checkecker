@@ -136,7 +136,7 @@ type Model struct {
 func NewModel(loader loaderFn, df detailFn, dfn diffFn, cf checksFn, qr quickReviewFn, rp runPipelineFn, open openFn, watchMin int) Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.MiniDot
-	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffb000"))
+	sp.Style = lipgloss.NewStyle().Foreground(colMauve)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	prsByTab := map[Tab][]github.PR{}

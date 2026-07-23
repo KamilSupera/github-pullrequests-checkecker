@@ -87,12 +87,35 @@ Nothing is required. Everything is optional:
 
 | Variable | Effect |
 |----------|--------|
+| `PRCHECK_THEME` | Color scheme: `auto` (default — detect the terminal background at startup, dark if unsure), `dark`, or `light`. |
 | `PRCHECK_AGENT` | Which agent to start with: `claude` (default) or `cursor`. You can also switch in the app with `A`. |
 | `PRCHECK_FOCUS` | Review aspects to emphasize, comma-separated, e.g. `security,performance,requirements,tests`. Empty means a balanced review. |
 | `PRCHECK_NOTIFY=1` | Send a desktop notification when a review finishes. |
 | `PRCHECK_WATCH` | Auto-refresh interval in minutes for Watch mode (default 5). |
 | `PRCHECK_DEBUG=1` | Send subprocess (`gh`/agent) output to the log for troubleshooting. |
 | `PRCHECK_CACHE_DIR` | Where snapshots, bookmarks, and history are written. Defaults to the OS cache dir (see below). |
+
+**Config file (optional).** Settings can also live in a JSON file so you don't have to
+export env vars. prcheck looks for it at (via `os.UserConfigDir()`):
+
+- Linux: `~/.config/prcheck/config.json`
+- macOS: `~/Library/Application Support/prcheck/config.json`
+- Windows: `%AppData%\prcheck\config.json`
+
+```json
+{
+  "theme": "light"
+}
+```
+
+Environment variables **override** the file (e.g. `PRCHECK_THEME=dark` wins over
+`"theme": "light"`). A missing file is fine; a malformed one is ignored with a warning.
+Currently only `theme` is read from the file — the other settings remain env-only for now.
+
+**Color scheme.** `theme` (or `PRCHECK_THEME`) is `auto`, `dark`, or `light`. `auto` checks
+the terminal's background color once at startup and picks the matching scheme, falling back
+to `dark` if the terminal doesn't report one. The default `dark` scheme is tuned for dark
+terminals; `light` is tuned for white/light backgrounds.
 
 **Watch mode** (`w` key) auto-refreshes all tabs every `PRCHECK_WATCH` minutes (default 5).
 When combined with `PRCHECK_NOTIFY=1`, it sends desktop notifications: "Review requested"

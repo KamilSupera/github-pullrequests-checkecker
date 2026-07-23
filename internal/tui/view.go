@@ -20,26 +20,36 @@ var (
 	reBlankLines   = regexp.MustCompile(`\n{3,}`)
 )
 
-// Theme — Blade Runner amber. Warm yellows and oranges against a near-
+// Theme — "Blade Runner amber." Warm yellows and oranges against a near-
 // black backdrop, with a single cool neon-cyan accent for contrast.
+//
+// Each color is an AdaptiveColor: the Dark variant is the original amber
+// scheme (unchanged, shown on dark terminals); the Light variant is a
+// darkened warm palette tuned for legibility on white/light backgrounds.
+// lipgloss picks the variant from the renderer's HasDarkBackground flag,
+// which main() sets once at startup (see cmd/prcheck + internal/tui/theme.go).
 // Hex colors degrade gracefully to 256-color when truecolor is off.
 var (
-	colFG       = lipgloss.Color("#f5e6c8") // warm off-white
-	colSubtext  = lipgloss.Color("#b89e5a") // muted amber
-	colOverlay  = lipgloss.Color("#6b5a2a") // dim amber
-	colMauve    = lipgloss.Color("#ffb000") // PRIMARY: amber yellow
-	colBlue     = lipgloss.Color("#00bfff") // neon cyan accent
-	colTeal     = lipgloss.Color("#ff8800") // deep orange (branch refs)
-	colGreen    = lipgloss.Color("#a0d060") // muted neon green
-	colYellow   = lipgloss.Color("#ffc107") // brighter gold (counts)
-	colPeach    = lipgloss.Color("#ff6f00") // burnt orange (author)
-	colRed      = lipgloss.Color("#ff4444") // alarm red
-	colPink     = lipgloss.Color("#e5a100") // dark amber (inline path)
-	colSurface0 = lipgloss.Color("#1a1305") // near-black warm brown
+	colFG       = lipgloss.AdaptiveColor{Dark: "#f5e6c8", Light: "#2e2410"} // body text
+	colSubtext  = lipgloss.AdaptiveColor{Dark: "#b89e5a", Light: "#7a5c12"} // secondary text
+	colOverlay  = lipgloss.AdaptiveColor{Dark: "#6b5a2a", Light: "#a98f4e"} // borders / dim
+	colMauve    = lipgloss.AdaptiveColor{Dark: "#ffb000", Light: "#b25e00"} // PRIMARY amber
+	colBlue     = lipgloss.AdaptiveColor{Dark: "#00bfff", Light: "#0e6fa8"} // cyan accent
+	colTeal     = lipgloss.AdaptiveColor{Dark: "#ff8800", Light: "#c05e00"} // deep orange (branch refs)
+	colGreen    = lipgloss.AdaptiveColor{Dark: "#a0d060", Light: "#3f8f2e"} // green (pass/approve)
+	colYellow   = lipgloss.AdaptiveColor{Dark: "#ffc107", Light: "#b07d00"} // gold (counts)
+	colPeach    = lipgloss.AdaptiveColor{Dark: "#ff6f00", Light: "#c25400"} // burnt orange (author)
+	colRed      = lipgloss.AdaptiveColor{Dark: "#ff4444", Light: "#c62828"} // alarm red
+	colPink     = lipgloss.AdaptiveColor{Dark: "#e5a100", Light: "#9c6b00"} // dark amber (inline path)
+	colSurface0 = lipgloss.AdaptiveColor{Dark: "#1a1305", Light: "#ece0c4"} // recessed surface (pills)
+	// colOnAccent is text drawn on top of a filled accent color (tabs,
+	// badges): near-black on the bright dark-mode fills, near-white on the
+	// darker light-mode fills.
+	colOnAccent = lipgloss.AdaptiveColor{Dark: "#1a1305", Light: "#fbf4e6"}
 
 	tabActive = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#1a1305")). // dark text on amber bar
+			Foreground(colOnAccent). // contrasting text on amber bar
 			Background(colMauve).
 			Padding(0, 1)
 	tabInactive = lipgloss.NewStyle().
@@ -68,12 +78,12 @@ var (
 	// Status badges (filled pills) — dark text on neon.
 	badgeApproved = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#1a1305")).
+			Foreground(colOnAccent).
 			Background(colGreen).
 			Padding(0, 1)
 	badgeChanges = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#1a1305")).
+			Foreground(colOnAccent).
 			Background(colRed).
 			Padding(0, 1)
 	badgeCommented = lipgloss.NewStyle().
@@ -100,7 +110,7 @@ func paneInnerSize(termW, termH int) (w, h int) {
 
 // borderFor returns the border color for a box: bright when it holds the
 // current focus, dim otherwise.
-func (m Model) borderFor(area focusArea) lipgloss.Color {
+func (m Model) borderFor(area focusArea) lipgloss.TerminalColor {
 	if m.focus == area {
 		return borderActiveColor
 	}
@@ -378,7 +388,7 @@ func (m Model) renderTabs() string {
 	// pops against the amber bar.
 	activeCount := lipgloss.NewStyle().
 		Foreground(colMauve).
-		Background(lipgloss.Color("#1a1305")).
+		Background(colSurface0).
 		Bold(true).
 		Padding(0, 1)
 	for i := Tab(0); i < 3; i++ {
@@ -410,7 +420,7 @@ func (m Model) renderTabs() string {
 
 // renderLegend is the one-line key for the list gutter glyphs.
 func (m Model) renderLegend() string {
-	c := func(col lipgloss.Color, s string) string {
+	c := func(col lipgloss.TerminalColor, s string) string {
 		return lipgloss.NewStyle().Foreground(col).Render(s)
 	}
 	return "  " + strings.Join([]string{
@@ -956,11 +966,11 @@ func renderStatusLine(d *github.PRDetail) string {
 	var parts []string
 	switch d.State {
 	case "OPEN":
-		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#1a1305")).Background(colGreen).Padding(0, 1).Render("OPEN"))
+		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(colOnAccent).Background(colGreen).Padding(0, 1).Render("OPEN"))
 	case "CLOSED":
-		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#1a1305")).Background(colRed).Padding(0, 1).Render("CLOSED"))
+		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(colOnAccent).Background(colRed).Padding(0, 1).Render("CLOSED"))
 	case "MERGED":
-		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#1a1305")).Background(colMauve).Padding(0, 1).Render("MERGED"))
+		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(colOnAccent).Background(colMauve).Padding(0, 1).Render("MERGED"))
 	}
 	if d.IsDraft {
 		parts = append(parts, badgeCommented.Render("DRAFT"))
@@ -971,7 +981,7 @@ func renderStatusLine(d *github.PRDetail) string {
 	case "CHANGES_REQUESTED":
 		parts = append(parts, badgeChanges.Render("CHANGES"))
 	case "REVIEW_REQUIRED":
-		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#1a1305")).Background(colYellow).Padding(0, 1).Render("REVIEW REQ"))
+		parts = append(parts, lipgloss.NewStyle().Bold(true).Foreground(colOnAccent).Background(colYellow).Padding(0, 1).Render("REVIEW REQ"))
 	}
 	switch d.Mergeable {
 	case "CONFLICTING":
@@ -1277,7 +1287,7 @@ func aspectLine(a claude.Aspect, w int) string {
 }
 
 func severityBadge(sev string) string {
-	style := lipgloss.NewStyle().Bold(true).Padding(0, 1).Foreground(lipgloss.Color("#1a1305"))
+	style := lipgloss.NewStyle().Bold(true).Padding(0, 1).Foreground(colOnAccent)
 	switch sev {
 	case "blocker":
 		return style.Background(colRed).Render("BLOCKER")
