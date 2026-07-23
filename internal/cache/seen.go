@@ -55,6 +55,13 @@ func (s *SeenStore) IsNew(url string, updatedAt time.Time) bool {
 	return updatedAt.After(t)
 }
 
+// Opened reports whether the user has ever loaded this PR's detail
+// (i.e. the URL has a recorded view time).
+func (s *SeenStore) Opened(url string) bool {
+	_, ok := s.URLs[url]
+	return ok
+}
+
 // Save persists the store. Best-effort.
 func (s *SeenStore) Save() {
 	p, err := seenPath()

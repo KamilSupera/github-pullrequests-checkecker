@@ -149,3 +149,14 @@ func TestDetectChanges(t *testing.T) {
 		}
 	}
 }
+
+func TestSeenOpened(t *testing.T) {
+	s := &SeenStore{URLs: map[string]time.Time{}}
+	if s.Opened("x") {
+		t.Error("unknown url should not report opened")
+	}
+	s.Mark("x")
+	if !s.Opened("x") {
+		t.Error("marked url should report opened")
+	}
+}
