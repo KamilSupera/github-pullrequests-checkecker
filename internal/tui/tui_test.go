@@ -45,7 +45,7 @@ func TestModel_ShowsMineTab(t *testing.T) {
 	}
 	open := func(url string) error { return nil }
 
-	m := NewModel(loader, detail, diff, checks, quickReview, runPipe, open)
+	m := NewModel(loader, detail, diff, checks, quickReview, runPipe, open, 5)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
 
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
