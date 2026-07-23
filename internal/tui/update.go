@@ -16,6 +16,14 @@ import (
 	"github.com/KamilSupera/github-pullrequests-checkecker/internal/pipeline"
 )
 
+// tickCmd schedules the next watch-mode refresh. gen is the generation
+// this tick belongs to; the handler drops ticks whose gen is stale.
+func tickCmd(gen, min int) tea.Cmd {
+	return tea.Tick(time.Duration(min)*time.Minute, func(time.Time) tea.Msg {
+		return watchTickMsg{gen: gen}
+	})
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
@@ -103,6 +111,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m = m.scrollListIntoView()
 		return m, nil
+
+	case watchTickMsg:
+		// Drop stale ticks (watch was toggled off, or a newer loop
+		// superseded this one). Otherwise refresh all tabs and
+		// reschedule. Does NOT nil the lists, so no blank-flash.
+		if msg.gen != m.watchGen || !m.watching {
+			return m, nil
+		}
+		return m, tea.Batch(
+			m.loadTab(TabMine),
+			m.loadTab(TabReview),
+			m.loadTab(TabMentioned),
+			tickCmd(m.watchGen, m.watchMin),
+		)
 
 	case prDetailMsg:
 		delete(m.loadingDetail, msg.url)
@@ -635,6 +657,16 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.listOffset = 0
 		m.commentsOffset = 0
 		return m, m.loadTab(m.tab)
+
+	case "w":
+		m.watching = !m.watching
+		if m.watching {
+			m.watchGen++
+			m.statusMsg = fmt.Sprintf("watch on (%dm)", m.watchMin)
+			return m, tickCmd(m.watchGen, m.watchMin)
+		}
+		m.statusMsg = "watch off"
+		return m, nil
 
 	case "/":
 		m.filtering = true

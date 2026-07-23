@@ -57,6 +57,10 @@ type quickReviewDoneMsg struct {
 	err   error
 }
 
+// watchTickMsg fires on the watch-mode timer. gen guards against stale
+// ticker loops surviving a watch off/on toggle.
+type watchTickMsg struct{ gen int }
+
 type Tab int
 
 const (
