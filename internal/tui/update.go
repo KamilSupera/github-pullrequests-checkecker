@@ -120,14 +120,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.loadErr[msg.tab] = msg.err
 		} else {
-			// Compute deltas vs the in-memory list (pre-overwrite), then
-			// fire desktop notifications if PRCHECK_NOTIFY=1. The first
-			// live load per tab only seeds the baseline (no burst).
+			// Compute deltas vs the on-disk snapshot (the previous load,
+			// saved below) then fire desktop notifications if
+			// PRCHECK_NOTIFY=1. Disk, not m.prsByTab, because the manual
+			// 'r' refresh nils the in-memory list before reloading — that
+			// would make every PR look new. The first live load per tab
+			// only seeds the baseline (no burst).
 			if os.Getenv("PRCHECK_NOTIFY") == "1" {
 				if !m.seededNotify[msg.tab] {
 					m.seededNotify[msg.tab] = true
 				} else {
-					old := &cache.Snapshot{PRs: m.prsByTab[msg.tab]}
+					old := cache.Load(tabCacheKey(msg.tab))
 					notifyChanges(msg.tab, cache.DetectChanges(old, msg.prs))
 				}
 			}
