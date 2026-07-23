@@ -9,6 +9,7 @@ import (
 	"runtime"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/KamilSupera/github-pullrequests-checkecker/internal/claude"
 	"github.com/KamilSupera/github-pullrequests-checkecker/internal/config"
@@ -45,6 +46,15 @@ func run() error {
 	if err := claude.SelectAgent(cfg.Agent); err != nil {
 		return err
 	}
+
+	// Resolve the color scheme once, up front. This must happen BEFORE
+	// tea.NewProgram takes over stdin in AltScreen mode: the "auto" path
+	// queries the terminal background, which would deadlock mid-run (see
+	// internal/tui/markdown.go). Freezing the result with
+	// SetHasDarkBackground also prevents lipgloss's own lazy query later.
+	dark := resolveDarkBackground(cfg.Theme)
+	lipgloss.SetHasDarkBackground(dark)
+	tui.SetTheme(dark)
 
 	if err := checkBinary("gh"); err != nil {
 		return err
@@ -101,6 +111,21 @@ func run() error {
 	program = tea.NewProgram(model, tea.WithAltScreen())
 	_, err = program.Run()
 	return err
+}
+
+// resolveDarkBackground maps the configured theme to a dark/light choice.
+// "dark"/"light" force the scheme; "auto" (and anything else) detects the
+// terminal background, falling back to dark when the terminal doesn't
+// answer (termenv reports a dark background for a non-TTY or no reply).
+func resolveDarkBackground(theme string) bool {
+	switch theme {
+	case "light":
+		return false
+	case "dark":
+		return true
+	default: // "auto"
+		return lipgloss.HasDarkBackground()
+	}
 }
 
 type claudeAdapter struct{}
