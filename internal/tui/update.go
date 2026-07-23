@@ -24,6 +24,34 @@ func tickCmd(gen, min int) tea.Cmd {
 	})
 }
 
+// notifyChanges fires desktop notifications for detected PR changes.
+// A new URL in the Review tab means a review was (re-)requested. More
+// than three changes collapse into a single summary to avoid a storm.
+func notifyChanges(tab Tab, changes []cache.Change) {
+	if len(changes) == 0 {
+		return
+	}
+	if len(changes) > 3 {
+		cache.Notify(
+			fmt.Sprintf("prcheck — %s", tab.Label()),
+			fmt.Sprintf("%d PRs changed", len(changes)),
+		)
+		return
+	}
+	for _, c := range changes {
+		var title string
+		switch {
+		case c.IsNew && tab == TabReview:
+			title = "Review requested"
+		case c.IsNew:
+			title = "New PR"
+		default:
+			title = "Updated"
+		}
+		cache.Notify(title, fmt.Sprintf("%s#%d %s", c.PR.Repo, c.PR.Number, c.PR.Title))
+	}
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
@@ -92,15 +120,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.loadErr[msg.tab] = msg.err
 		} else {
-			// Compute deltas vs the cached snapshot before overwriting it,
-			// then fire desktop notifications if PRCHECK_NOTIFY=1.
+			// Compute deltas vs the in-memory list (pre-overwrite), then
+			// fire desktop notifications if PRCHECK_NOTIFY=1. The first
+			// live load per tab only seeds the baseline (no burst).
 			if os.Getenv("PRCHECK_NOTIFY") == "1" {
-				prev := cache.Load(tabCacheKey(msg.tab))
-				if changed := cache.DetectChanges(prev, msg.prs); len(changed) > 0 {
-					cache.Notify(
-						fmt.Sprintf("prcheck — %s", msg.tab.Label()),
-						fmt.Sprintf("%d PRs updated since last fetch", len(changed)),
-					)
+				if !m.seededNotify[msg.tab] {
+					m.seededNotify[msg.tab] = true
+				} else {
+					old := &cache.Snapshot{PRs: m.prsByTab[msg.tab]}
+					notifyChanges(msg.tab, cache.DetectChanges(old, msg.prs))
 				}
 			}
 			sort.Slice(msg.prs, func(i, j int) bool {

@@ -8,10 +8,18 @@ import (
 	"github.com/KamilSupera/github-pullrequests-checkecker/internal/github"
 )
 
-// DetectChanges compares an old snapshot to a fresh PR list and
-// returns URLs that look new or freshly updated. Old==nil returns
-// no changes (the very first launch shouldn't burst notifications).
-func DetectChanges(old *Snapshot, fresh []github.PR) []string {
+// Change describes one PR that differs from the previous snapshot.
+// IsNew is true when the URL was absent from the old snapshot;
+// otherwise the URL existed and its UpdatedAt changed.
+type Change struct {
+	PR    github.PR
+	IsNew bool
+}
+
+// DetectChanges compares an old snapshot to a fresh PR list and returns
+// the PRs that are new or freshly updated. Old==nil returns no changes
+// (the very first launch shouldn't burst notifications).
+func DetectChanges(old *Snapshot, fresh []github.PR) []Change {
 	if old == nil {
 		return nil
 	}
@@ -19,11 +27,14 @@ func DetectChanges(old *Snapshot, fresh []github.PR) []string {
 	for _, pr := range old.PRs {
 		byURL[pr.URL] = pr.UpdatedAt
 	}
-	var out []string
+	var out []Change
 	for _, pr := range fresh {
 		prev, seen := byURL[pr.URL]
-		if !seen || pr.UpdatedAt != prev {
-			out = append(out, pr.URL)
+		switch {
+		case !seen:
+			out = append(out, Change{PR: pr, IsNew: true})
+		case pr.UpdatedAt != prev:
+			out = append(out, Change{PR: pr, IsNew: false})
 		}
 	}
 	return out

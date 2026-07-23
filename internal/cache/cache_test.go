@@ -133,19 +133,31 @@ func TestDetectChanges(t *testing.T) {
 		{URL: "b", UpdatedAt: "t1"},
 	}}
 	fresh := []github.PR{
-		{URL: "a", UpdatedAt: "t1"},
-		{URL: "b", UpdatedAt: "t2"},
-		{URL: "c", UpdatedAt: "t1"},
+		{URL: "a", UpdatedAt: "t1"}, // unchanged -> omitted
+		{URL: "b", UpdatedAt: "t2"}, // updated   -> IsNew=false
+		{URL: "c", UpdatedAt: "t1"}, // new URL   -> IsNew=true
 	}
 
 	got := DetectChanges(old, fresh)
-	want := map[string]bool{"b": true, "c": true}
 	if len(got) != 2 {
 		t.Fatalf("DetectChanges = %v, want 2 entries", got)
 	}
-	for _, u := range got {
-		if !want[u] {
-			t.Errorf("unexpected changed URL %q", u)
-		}
+	isNew := map[string]bool{}
+	present := map[string]bool{}
+	for _, c := range got {
+		present[c.PR.URL] = true
+		isNew[c.PR.URL] = c.IsNew
+	}
+	if !present["b"] || !present["c"] {
+		t.Fatalf("DetectChanges missing b/c: %v", got)
+	}
+	if present["a"] {
+		t.Errorf("unchanged PR a should not be reported")
+	}
+	if isNew["b"] {
+		t.Errorf("b changed UpdatedAt, IsNew should be false")
+	}
+	if !isNew["c"] {
+		t.Errorf("c is a new URL, IsNew should be true")
 	}
 }
